@@ -44,6 +44,16 @@ namespace hzd {
         int write_total_bytes{0};
     public:
         conn() = default;
+        enum Status
+        {
+            NO,
+            BAD,
+            IN,
+            OUT,
+            RDHUP,
+            ERROR,
+        };
+        Status status;
         virtual void init(int _socket_fd,sockaddr_in* _addr)
         {
             socket_fd = _socket_fd;
@@ -53,6 +63,18 @@ namespace hzd {
         virtual sockaddr_in& addr()
         {
             return sock_addr;
+        }
+        static int epoll_add(int _epoll_fd,int _socket_fd,bool _one_shot)
+        {
+            return hzd::epoll_add(_epoll_fd,_socket_fd,_one_shot);
+        }
+        static int epoll_mod(int _epoll_fd,int _socket_fd,uint32_t _ev,bool _one_shot)
+        {
+            return hzd::epoll_mod(_epoll_fd,_socket_fd,_ev,_one_shot);
+        }
+        static int epoll_del(int _epoll_fd,int _socket_fd)
+        {
+            return epoll_del(_epoll_fd,_socket_fd);
         }
         virtual bool process_in() = 0;
         virtual bool process_out() = 0;
@@ -68,18 +90,57 @@ namespace hzd {
                     inet_ntoa(sock_addr.sin_addr),ntohs(sock_addr.sin_port));
             return true;
         }
+        virtual bool process()
+        {
+            switch(status)
+            {
+                case IN:{
+                    status = NO;
+                    if(!process_in())
+                    {
+                        status = BAD;
+                        return false;
+                    }
+                    return true;
+                }
+                case OUT:{
+                    status = NO;
+                    if(!process_out())
+                    {
+                        status = BAD;
+                        return false;
+                    }
+                    return true;
+                }
+                case RDHUP:{
+                    status = NO;
+                    return process_rdhup();
+                }
+                case ERROR:{
+                    status = NO;
+                    return process_error();
+                }
+                case BAD:{
+                    return false;
+                }
+                default:{
+                    status = NO;
+                    return true;
+                }
+            }
+        }
         virtual void close()
         {
             if(socket_fd != -1)
             {
                 ::close(socket_fd);
+                socket_fd = -1;
             }
         }
         virtual ~conn()
         {
             conn::close();
         }
-
         static int epoll_fd;
     };
     int conn::epoll_fd = -1;

@@ -8,7 +8,9 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
+
 #include "ErrorLog/ErrorLog.h"
+#include "threadpool.h"
 #include "conn.h"
 
 namespace hzd {
@@ -27,6 +29,7 @@ namespace hzd {
         int max_connect_count{512};
         int current_connect_count{0};
         std::unordered_map<int,T*> connects;
+        threadpool<T>* thread_pool = nullptr;
 
     public:
         conv(std::string _ip,short _port):ip(std::move(_ip)),port(_port)
@@ -97,6 +100,10 @@ namespace hzd {
             {
                 connects.clear();
             }
+            if(thread_pool)
+            {
+                delete thread_pool;
+            }
         }
         void addr_reuse()
         {
@@ -108,12 +115,25 @@ namespace hzd {
             int opt = 1;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEPORT,(const void*)&opt,sizeof(opt));
         }
+        void multi_thread(int thread_count = 8,int max_process_count = 10000)
+        {
+            if(!thread_pool)
+            {
+                thread_pool = new threadpool<T>(thread_count,max_process_count);
+            }
+        }
 
         void wait(int time_out = 0)
         {
             if(listen(socket_fd,listen_queue_count) < 0)
             {
                 LOG(Socket_Listen,"listen socket error");
+                close();
+                exit(-1);
+            }
+            if(!events)
+            {
+                LOG(Pointer_To_Null,"epoll_events array is nullptr");
                 close();
                 exit(-1);
             }
@@ -146,18 +166,25 @@ namespace hzd {
                         }
                         connects[client_fd] = new T;
                         connects[client_fd]->init(client_fd, &client_addr);
+                        current_connect_count++;
                     }
                     #define CONNECTS_REMOVE_FD do{                  \
-                                connects[cur_fd]->close();           \
+                                connects[cur_fd]->close();          \
+                                current_connect_count--;            \
                                 auto iter = connects.find(cur_fd);  \
                                 if(iter != connects.end())          \
                                 {                                   \
                                     connects.erase(iter);           \
                                 }                                   \
                     }while(0)
+                    else if(connects[cur_fd]->status == conn::BAD)
+                    {
+                        CONNECTS_REMOVE_FD;
+                    }
                     else if(events[event_index].events & EPOLLRDHUP)
                     {
-                        if(!connects[cur_fd]->process_rdhup())
+                        connects[cur_fd]->status = conn::RDHUP;
+                        if(!connects[cur_fd]->process())
                         {
 
                         }
@@ -165,7 +192,8 @@ namespace hzd {
                     }
                     else if(events[event_index].events & EPOLLERR)
                     {
-                        if(!connects[cur_fd]->process_error())
+                        connects[cur_fd]->status = conn::ERROR;
+                        if(!connects[cur_fd]->process())
                         {
 
                         }
@@ -173,21 +201,36 @@ namespace hzd {
                     }
                     else if(events[event_index].events & EPOLLIN)
                     {
-                        LOG_MSG("123");
-                        if(!connects[cur_fd]->process_in())
+                        connects[cur_fd]->status = conn::IN;
+                        if(thread_pool)
                         {
-                            LOG_FMT(Epoll_Read,"epoll read error","client IP=%s client Port = %u",
-                                    inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
-                            CONNECTS_REMOVE_FD;
+                            thread_pool->add(connects[cur_fd]);
+                        }
+                        else
+                        {
+                            if(!connects[cur_fd]->process())
+                            {
+                                LOG_FMT(Epoll_Read,"epoll read error","client IP=%s client Port = %u",
+                                        inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
+                                CONNECTS_REMOVE_FD;
+                            }
                         }
                     }
                     else if(events[event_index].events & EPOLLOUT)
                     {
-                        if(!connects[cur_fd]->process_out())
+                        connects[cur_fd]->status = conn::OUT;
+                        if(thread_pool)
                         {
-                            LOG_FMT(Epoll_Write,"epoll write error","client IP=%s client Port = %u",
-                                    inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
-                            CONNECTS_REMOVE_FD;
+                            thread_pool->add(connects[cur_fd]);
+                        }
+                        else
+                        {
+                            if(!connects[cur_fd]->process())
+                            {
+                                LOG_FMT(Epoll_Write,"epoll write error","client IP=%s client Port = %u",
+                                        inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
+                                CONNECTS_REMOVE_FD;
+                            }
                         }
                     }
                     else
