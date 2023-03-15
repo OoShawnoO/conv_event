@@ -11,6 +11,26 @@
     ```c++
     bool process_in(); /* process the EPOLLIN */
     bool process_out(); /* process the EPOLLOUT */
+  
+  /* template */
+  class conn_a : public hzd::conn
+  {
+  public:
+    bool process_in() override
+    {
+        read(socket_fd,read_buffer,sizeof(read_buffer));
+        std::cout << read_buffer<<std::endl;
+        epoll_mod(epoll_fd,socket_fd,EPOLLOUT,false);
+        return true;
+    }
+    bool process_out() override
+    {
+        sprintf(write_buffer,"i am server");
+        write(socket_fd, write_buffer,sizeof(write_buffer));
+        return true;
+    }
+  
+  };
     ```
 - Methods that optional be inherited
     ```c++
@@ -26,4 +46,10 @@
     int read_cursor{0};
     int write_cursor{0};
     int write_total_bytes{0};
+    ```
+- Use multi-thread
+    ```c++
+    hzd::conv<conn_a> base;
+    base.multi_thread(); /* 创建线程池 */
+    base.wait();
     ```
