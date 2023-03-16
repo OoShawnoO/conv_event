@@ -26,26 +26,35 @@ int main(){
 
     json pack;
     while(1){
-        bzero(data,64);
-        send(sockfd,"i am client",12,0);
-        if(recv(sockfd,data,64,MSG_PEEK)<=0)
+        if(send(sockfd,"i am client",12,0)<=0)
         {
-            exit(-1);
+            exit(-2);
         }
-        string s(data);
-        int size = s.size() + 1;
-        std::cout << s << std::endl;
-        if(pack.load(s))
-        {
-            if(pack["type"] == "heart_beat")
-            {
-                pack["type"] = "heart_beat_ret";
-                recv(sockfd,data,64,0);
-                string a = pack.dump();
-                send(sockfd,a.c_str(),a.size()+1,0);
-            }
-        }
-        pack.clear();
+        std::cout << "i am client" << std::endl;
+        recv(sockfd,data,64,0);
+        std::cout << data  << std::endl;
+        sleep(10);
+//        bzero(data,64);
+//        if(recv(sockfd,data,64,MSG_PEEK)<=0)
+//        {
+//            exit(-1);
+//        }
+//        string s(data);
+//        int size = s.size() + 1;
+//        std::cout << s << std::endl;
+//        if(pack.load(s))
+//        {
+//            if(pack["type"] == "heart_beat")
+//            {
+//                std::cout << "1" << std::endl;
+//                pack["type"] = "heart_beat_ret";
+//                recv(sockfd,data,64,0);
+//                string a = pack.dump();
+//                send(sockfd,a.c_str(),a.size()+1,0);
+//                std::cout << "1" << std::endl;
+//            }
+//        }
+//        pack.clear();
     }
     close(sockfd);
 }

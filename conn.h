@@ -19,7 +19,7 @@ namespace hzd {
         epoll_event ev{};
         ev.data.fd = socket_fd;
         ev.events = EPOLLIN | EPOLLRDHUP;
-        if(one_shot) ev.events |= EPOLLONESHOT;
+        if(one_shot) ev.events = ev.events | EPOLLONESHOT;
         return epoll_ctl(epoll_fd,EPOLL_CTL_ADD,socket_fd,&ev);
     }
     static int epoll_mod(int epoll_fd,int socket_fd,uint32_t ev,bool one_shot)
@@ -29,7 +29,7 @@ namespace hzd {
         event.events = ev | EPOLLRDHUP;
         if(one_shot)
         {
-            event.events |= EPOLLONESHOT;
+            event.events = event.events | EPOLLONESHOT;
         }
         return epoll_ctl(epoll_fd,EPOLL_CTL_MOD,socket_fd,&event);
     }
@@ -41,67 +41,128 @@ namespace hzd {
     }
 
     class conn {
-        void time_out(int arg)
+        bool set_recv_time_out(int sec,int usec)
         {
-            status = TIMEOUT;
+            set_time_out_timer(sec,usec);
+            if(setsockopt(socket_fd,SOL_SOCKET,SO_RCVTIMEO,&time_out_timer,sizeof(time_out_timer)) < 0)
+            {
+                LOG(Socket_Set_Opt,"set sock opt error");
+                return false;
+            }
+            return true;
         }
-        inline void set_itimer()
-        {
-            setitimer(ITIMER_PROF,&time_out_timer,nullptr);
-        }
-        void send_heart_beat()
+        void prepare_heart_beat()
         {
             heart_beat_send_time = time(nullptr);
             json pack{
                 {"type","heart_beat"},
                 {"time",(double)heart_beat_send_time}
             };
-            bzero(heart_beat_packet,64);
-            sprintf(heart_beat_packet,"%s",pack.dump().c_str());
-            if(send(socket_fd,heart_beat_packet,sizeof(heart_beat_packet),0) <= 0)
+            bzero(heart_beat_buffer,sizeof(heart_beat_buffer));
+            sprintf(heart_beat_buffer,"%s",pack.dump().c_str());
+        }
+        bool process_out_base()
+        {
+            if(status == HEARTBEAT)
             {
-                LOG_FMT(Conn_Send,"conn send error",CONN_LOG_IP_PORT_FMT);
+                prepare_heart_beat();
+                if(send(socket_fd,heart_beat_buffer,sizeof(heart_beat_buffer),0) <= 0)
+                {
+                    status = BAD;
+                    return false;
+                }
+                heart_beat_already = true;
+                status = WAIT;
+                return true;
+            }
+            else if(status == OUT)
+            {
+                return process_out();
+            }
+            else
+            {
                 status = BAD;
-                return;
+                return false;
             }
         }
-        void recv_heart_beat()
+        bool process_in_base()
         {
-            if(heart_beat_already)
+            if(status == WAIT)
             {
-                int ret = 0;
-                json pack;
-                bzero(heart_beat_packet,64);
-                setsockopt(socket_fd,SOL_SOCKET,SO_RCVTIMEO,&time_out_timer,sizeof(time_out_timer));
-                if((ret = recv(socket_fd,heart_beat_packet,sizeof(heart_beat_packet),MSG_PEEK)) <= 0)
+                set_recv_time_out(2,0);
+                size_t ret = 0;
+                bzero(heart_beat_buffer,sizeof(heart_beat_buffer));
+                if((ret = recv(socket_fd,heart_beat_buffer,sizeof(heart_beat_buffer),MSG_PEEK)) <= 0)
                 {
-                    LOG_FMT(Conn_Recv,"conn recv error",CONN_LOG_IP_PORT_FMT);
-                    if(ret == 0)
+                    if(ret == -1 && errno == EAGAIN || errno == EWOULDBLOCK)
+                    {
+                        LOG_FMT(Heart_Beat_Timeout,"heart beat time out",CONN_LOG_IP_PORT_FMT);
+                        status = BAD;
+                        return false;
+                    }
+                    else if(ret == 0)
                     {
                         status = RDHUP;
-                    }
-                    else if(ret == -1)
-                    {
-                        status = TIMEOUT;
+                        return false;
                     }
                     else
                     {
                         status = BAD;
+                        return false;
                     }
-                    return;
                 }
-                std::string s(heart_beat_packet);
-                if(pack.load(s))
+                if(heart_beat_buffer[0] == '{')
                 {
-                    if(pack["type"] == "heart_beat_ret")
+                    json pack;
+                    std::string s(heart_beat_buffer);
+                    if(pack.load(s))
                     {
-                        recv(socket_fd,heart_beat_packet,s.size()+1,0);
-                        last_in_time = time(nullptr);
-                        status = NO;
-                        heart_beat_already = false;
-                        return;
+                        if(recv(socket_fd,heart_beat_buffer,sizeof(heart_beat_buffer),0) <= 0)
+                        {
+                            if(ret == -1 && errno == EAGAIN || errno == EWOULDBLOCK)
+                            {
+                                LOG_FMT(Heart_Beat_Timeout,"heart beat time out",CONN_LOG_IP_PORT_FMT);
+                                status = BAD;
+                                return false;
+                            }
+                            else if(ret == 0)
+                            {
+                                status = RDHUP;
+                                return false;
+                            }
+                            else
+                            {
+                                status = BAD;
+                                return false;
+                            }
+                        }
+                        if(pack["type"] == "heart_beat_ret")
+                        {
+                            last_in_time = time(nullptr);
+                            heart_beat_already = false;
+                            status = IN;
+                            set_recv_time_out(0,0);
+                            return true;
+                        }
                     }
+                    status = BAD;
+                    return false;
                 }
+                status = BAD;
+                return false;
+            }
+            else if(status == IN)
+            {
+                if(process_in())
+                {
+                    last_in_time = time(nullptr);
+                    return true;
+                }
+                return false;
+            }
+            else
+            {
+                return false;
             }
         }
     protected:
@@ -109,12 +170,12 @@ namespace hzd {
         sockaddr_in sock_addr{};
         char read_buffer[4096] = {0};
         char write_buffer[4096] = {0};
-        char heart_beat_packet[64] = {0};
+        char heart_beat_buffer[64] = {0};
         int read_cursor{0};
         int write_cursor{0};
         int write_total_bytes{0};
         time_t heart_beat_send_time{0};
-        struct itimerval time_out_timer{2,0};
+        struct timeval time_out_timer{2,0};
     public:
         conn() = default;
         enum Status
@@ -126,7 +187,7 @@ namespace hzd {
             RDHUP,
             ERROR,
             HEARTBEAT,
-            TIMEOUT,
+            WAIT,
         };
         /* static member variable*/
         static struct sigaction* time_out_sigaction;
@@ -172,10 +233,11 @@ namespace hzd {
         {
             if(sec >= 0 && usec >= 0)
             {
-                time_out_timer.it_interval.tv_sec = sec;
-                time_out_timer.it_interval.tv_usec = usec;
+                time_out_timer.tv_sec = sec;
+                time_out_timer.tv_usec = usec;
             }
         }
+
         virtual bool process_in() = 0;
         virtual bool process_out() = 0;
         virtual bool process_rdhup()
@@ -192,38 +254,18 @@ namespace hzd {
         {
             switch(status)
             {
-                case HEARTBEAT : {
-                    status = NO;
-                    send_heart_beat();
-                    recv_heart_beat();
-                    return true;
-                }
+                case WAIT :
                 case IN : {
-                    status = NO;
-                    recv_heart_beat();
-                    if(!process_in())
-                    {
-                        status = BAD;
-                        return false;
-                    }
-                    last_in_time = time(nullptr);
-                    return true;
+                    return process_in_base();
                 }
+                case HEARTBEAT:
                 case OUT : {
-                    status = NO;
-                    if(!process_out())
-                    {
-                        status = BAD;
-                        return false;
-                    }
-                    return true;
+                    return process_out_base();
                 }
                 case RDHUP : {
-                    status = NO;
                     return process_rdhup();
                 }
                 case ERROR : {
-                    status = NO;
                     return process_error();
                 }
                 case BAD : {
