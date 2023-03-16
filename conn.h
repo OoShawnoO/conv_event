@@ -34,11 +34,16 @@ namespace hzd {
     }
 
     class conn {
+        void pack_heart_beat()
+        {
+
+        }
     protected:
         int socket_fd{-1};
         sockaddr_in sock_addr{};
         char read_buffer[4096] = {0};
         char write_buffer[4096] = {0};
+        char heart_beat_packet[64] = {0};
         int read_cursor{0};
         int write_cursor{0};
         int write_total_bytes{0};
@@ -52,6 +57,7 @@ namespace hzd {
             OUT,
             RDHUP,
             ERROR,
+            HEARTBEAT,
         };
         Status status;
         virtual void init(int _socket_fd,sockaddr_in* _addr)
@@ -74,7 +80,7 @@ namespace hzd {
         }
         static int epoll_del(int _epoll_fd,int _socket_fd)
         {
-            return epoll_del(_epoll_fd,_socket_fd);
+            return hzd::epoll_del(_epoll_fd,_socket_fd);
         }
         virtual bool process_in() = 0;
         virtual bool process_out() = 0;
@@ -94,7 +100,11 @@ namespace hzd {
         {
             switch(status)
             {
-                case IN:{
+                case HEARTBEAT : {
+                    status = NO;
+                    pack_heart_beat();
+                }
+                case IN : {
                     status = NO;
                     if(!process_in())
                     {
@@ -103,7 +113,7 @@ namespace hzd {
                     }
                     return true;
                 }
-                case OUT:{
+                case OUT : {
                     status = NO;
                     if(!process_out())
                     {
@@ -112,18 +122,18 @@ namespace hzd {
                     }
                     return true;
                 }
-                case RDHUP:{
+                case RDHUP : {
                     status = NO;
                     return process_rdhup();
                 }
-                case ERROR:{
+                case ERROR : {
                     status = NO;
                     return process_error();
                 }
-                case BAD:{
+                case BAD : {
                     return false;
                 }
-                default:{
+                default : {
                     status = NO;
                     return true;
                 }
@@ -133,6 +143,7 @@ namespace hzd {
         {
             if(socket_fd != -1)
             {
+                epoll_del(epoll_fd,socket_fd);
                 ::close(socket_fd);
                 socket_fd = -1;
             }

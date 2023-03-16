@@ -28,6 +28,7 @@ namespace hzd {
         int listen_queue_count{32};
         int max_connect_count{512};
         int current_connect_count{0};
+        bool heart_beat{false};
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool = nullptr;
 
@@ -92,37 +93,69 @@ namespace hzd {
             {
                 ::close(epoll_fd);
             }
-            if(events)
-            {
-                delete []events;
-            }
+            delete []events;
+            events = nullptr;
             if(!connects.empty())
             {
                 connects.clear();
             }
-            if(thread_pool)
-            {
-                delete thread_pool;
-            }
+            delete thread_pool;
+            thread_pool = nullptr;
+
         }
-        void addr_reuse()
+        void enable_addr_reuse()
         {
             int opt = 1;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEADDR,(const void*)&opt,sizeof(opt));
         }
-        void port_reuse()
+        void disable_add_reuse()
+        {
+            int opt = 0;
+            setsockopt(socket_fd,SOL_SOCKET,SO_REUSEADDR,(const void*)&opt,sizeof(opt));
+        }
+        void enable_port_reuse()
         {
             int opt = 1;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEPORT,(const void*)&opt,sizeof(opt));
         }
-        void multi_thread(int thread_count = 8,int max_process_count = 10000)
+        void disable_port_reuse()
+        {
+            int opt = 0;
+            setsockopt(socket_fd,SOL_SOCKET,SO_REUSEPORT,(const void*)&opt,sizeof(opt));
+        }
+        void enable_multi_thread(int thread_count = 8,int max_process_count = 10000)
         {
             if(!thread_pool)
             {
                 thread_pool = new threadpool<T>(thread_count,max_process_count);
             }
         }
+        void disable_multi_thread()
+        {
+            delete thread_pool;
+            thread_pool = nullptr;
+        }
+        void enable_heart_beat(){heart_beat = true;}
+        void disable_heart_beat(){heart_beat = false;}
+        void set_max_events_count(int size){if(size >= 0) max_events_count = size;}
+        void set_max_connect_count(int size){if(size >= 0) max_connect_count = size;}
+        void set_listen_queue_count(int size){if(size >= 0) listen_queue_count = size;}
 
+        #define CONNECTS_REMOVE_FD_OUT do{      \
+            connect->second->close();           \
+            current_connect_count--;            \
+            connect = connects.erase(connect);  \
+        }while(0)
+
+        #define CONNECTS_REMOVE_FD do{          \
+            connects[cur_fd]->close();          \
+            current_connect_count--;            \
+            auto iter = connects.find(cur_fd);  \
+            if(iter != connects.end())          \
+            {                                   \
+                connects.erase(iter);           \
+            }                                   \
+        }while(0)
         void wait(int time_out = 0)
         {
             if(listen(socket_fd,listen_queue_count) < 0)
@@ -140,6 +173,48 @@ namespace hzd {
             while(true)
             {
                 int ret = 0;
+                for(auto connect = connects.begin();connect != connects.end();)
+                {
+                    switch(connect->second->status)
+                    {
+                        case conn::BAD : {
+                            CONNECTS_REMOVE_FD_OUT;
+                            break;
+                        }
+                        case conn::HEARTBEAT : {
+                            if(heart_beat)
+                            {
+                                if(thread_pool)
+                                {
+                                    thread_pool->add(connect->second);
+                                    connect++;
+                                }
+                                else
+                                {
+                                    if(!connect->second->process())
+                                    {
+                                        LOG_FMT(Epoll_Read,"epoll read error","client IP=%s client Port = %u",
+                                                inet_ntoa(connect->addr().sin_addr),ntohs(connect->addr().sin_port));
+                                        CONNECTS_REMOVE_FD_OUT;
+                                    }
+                                    else
+                                    {
+                                        connect++;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                connect->second->status = conn::NO;
+                                connect++;
+                            }
+                            break;
+                        }
+                        default : {
+                            connect++;
+                        }
+                    }
+                }
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) < 0)
                 {
                     if(errno == EINTR)
@@ -167,19 +242,6 @@ namespace hzd {
                         connects[client_fd] = new T;
                         connects[client_fd]->init(client_fd, &client_addr);
                         current_connect_count++;
-                    }
-                    #define CONNECTS_REMOVE_FD do{                  \
-                                connects[cur_fd]->close();          \
-                                current_connect_count--;            \
-                                auto iter = connects.find(cur_fd);  \
-                                if(iter != connects.end())          \
-                                {                                   \
-                                    connects.erase(iter);           \
-                                }                                   \
-                    }while(0)
-                    else if(connects[cur_fd]->status == conn::BAD)
-                    {
-                        CONNECTS_REMOVE_FD;
                     }
                     else if(events[event_index].events & EPOLLRDHUP)
                     {

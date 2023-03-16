@@ -1,0 +1,3 @@
+/home/huzhida/C++/conv_event/cmake-build-debug/CMakeFiles/conv_event.dir
+/home/huzhida/C++/conv_event/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/huzhida/C++/conv_event/cmake-build-debug/CMakeFiles/rebuild_cache.dir
