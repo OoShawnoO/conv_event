@@ -175,8 +175,15 @@ namespace hzd {
                 int ret = 0;
                 for(auto connect = connects.begin();connect != connects.end();)
                 {
+                    if(connect->second->fd() == socket_fd) continue;
+                    if(!connect->second->heart_beat_already && time(nullptr) - connect->second->last_in_time > 4)
+                    {
+                        connect->second->status = conn::HEARTBEAT;
+                        connect->second->heart_beat_already = true;
+                    }
                     switch(connect->second->status)
                     {
+                        case conn::TIMEOUT :
                         case conn::BAD : {
                             CONNECTS_REMOVE_FD_OUT;
                             break;
@@ -194,7 +201,7 @@ namespace hzd {
                                     if(!connect->second->process())
                                     {
                                         LOG_FMT(Epoll_Read,"epoll read error","client IP=%s client Port = %u",
-                                                inet_ntoa(connect->addr().sin_addr),ntohs(connect->addr().sin_port));
+                                                inet_ntoa(connect->second->addr().sin_addr),ntohs(connect->second->addr().sin_port));
                                         CONNECTS_REMOVE_FD_OUT;
                                     }
                                     else
