@@ -8,7 +8,7 @@ namespace hzd {
     template<class T>
     class conv {
         static_assert(std::is_base_of_v<conn,T>,"must derived from class hzd::conn.");
-    private:
+    protected:
         std::string ip;
         short port;
         int socket_fd{-1};
@@ -19,9 +19,6 @@ namespace hzd {
         int listen_queue_count{32};
         int max_connect_count{512};
         int current_connect_count{0};
-        bool heart_beat{false};
-        int heart_beat_interval{4};
-        int time_out_timer_sec{2};
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool = nullptr;
 
@@ -128,12 +125,9 @@ namespace hzd {
             delete thread_pool;
             thread_pool = nullptr;
         }
-        void enable_heart_beat(){heart_beat = true;}
-        void disable_heart_beat(){heart_beat = false;}
         void set_max_events_count(int size){if(size >= 0) max_events_count = size;}
         void set_max_connect_count(int size){if(size >= 0) max_connect_count = size;}
         void set_listen_queue_count(int size){if(size >= 0) listen_queue_count = size;}
-        void set_heart_beat_interval(int interval){if(interval>=0) heart_beat_interval = interval;}
         #define CONNECTS_REMOVE_FD_OUT do{      \
             LOG_MSG("status:bad client close"); \
             connect->second->close();           \
@@ -164,9 +158,9 @@ namespace hzd {
                 close();
                 exit(-1);
             }
+            int ret;
             while(true)
             {
-                int ret = 0;
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) < 0)
                 {
                     if(errno == EINTR)
@@ -215,8 +209,7 @@ namespace hzd {
                     }
                     else if(events[event_index].events & EPOLLIN)
                     {
-                        if(connects[cur_fd]->status != conn::WAIT)
-                            connects[cur_fd]->status = conn::IN;
+                        connects[cur_fd]->status = conn::IN;
                         if(thread_pool)
                         {
                             thread_pool->add(connects[cur_fd]);
@@ -233,8 +226,7 @@ namespace hzd {
                     }
                     else if(events[event_index].events & EPOLLOUT)
                     {
-                        if(connects[cur_fd]->status != conn::HEARTBEAT)
-                            connects[cur_fd]->status = conn::OUT;
+                        connects[cur_fd]->status = conn::OUT;
                         if(thread_pool)
                         {
                             thread_pool->add(connects[cur_fd]);

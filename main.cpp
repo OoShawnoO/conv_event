@@ -1008,6 +1008,7 @@ public:
              "\n"
              "\n"
              "    }while(1);");
+        epoll_mod(epoll_fd,socket_fd,EPOLLIN,false);
         return true;
     }
 
@@ -1018,8 +1019,6 @@ int main()
 {
     conv<conn_a> base("127.0.0.1",9999);
 //    base.enable_multi_thread();
-    base.set_heart_beat_interval(10);
-    base.enable_heart_beat();
     base.enable_addr_reuse();
     base.enable_port_reuse();
     base.wait();

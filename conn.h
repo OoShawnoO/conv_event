@@ -67,7 +67,7 @@ namespace hzd {
                 LOG(Conn_Send,"header send error");
                 return false;
             }
-            size_t send_count = 0;
+            size_t send_count;
             write_cursor = 0;
             while(write_cursor < write_total_bytes)
             {
@@ -86,19 +86,15 @@ namespace hzd {
     protected:
         int socket_fd{-1};
         sockaddr_in sock_addr{};
-        time_t heart_beat_send_time{0};
-        struct timeval time_out_timer{2,0};
     public:
         enum Status
         {
-            NO,
+            OK,
             BAD,
             IN,
             OUT,
             RDHUP,
             ERROR,
-            HEARTBEAT,
-            WAIT,
         };
         /* default constructor */
         conn() = default;
@@ -123,9 +119,7 @@ namespace hzd {
             return hzd::epoll_del(_epoll_fd,_socket_fd);
         }
         /* common member variable */
-        Status status;
-        time_t last_in_time{time(nullptr)};
-        bool heart_beat_already{false};
+        Status status{OK};
         /* common base member methods */
         bool send(const char* data,header_type type = header_type::BYTE)
         {
@@ -147,7 +141,7 @@ namespace hzd {
             }
             read_total_bytes = h.size;
             type = h.type;
-            size_t read_count = 0;
+            size_t read_count;
             read_cursor = 0;
             data.clear();
             while(read_cursor < read_total_bytes)
@@ -176,15 +170,6 @@ namespace hzd {
             return sock_addr;
         }
         virtual int fd(){return socket_fd;}
-        virtual void set_time_out_timer(int sec,int usec)
-        {
-            if(sec >= 0 && usec >= 0)
-            {
-                time_out_timer.tv_sec = sec;
-                time_out_timer.tv_usec = usec;
-            }
-        }
-
         virtual bool process_in() = 0;
         virtual bool process_out() = 0;
         virtual bool process_rdhup()
@@ -201,11 +186,9 @@ namespace hzd {
         {
             switch(status)
             {
-                case WAIT :
                 case IN : {
                     return process_in_base();
                 }
-                case HEARTBEAT:
                 case OUT : {
                     return process_out_base();
                 }
@@ -219,7 +202,7 @@ namespace hzd {
                     return false;
                 }
                 default : {
-                    status = NO;
+                    status = OK;
                     return true;
                 }
             }
