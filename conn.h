@@ -1,15 +1,12 @@
 #ifndef CONV_EVENT_CONN_H
 #define CONV_EVENT_CONN_H
 
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/epoll.h>
-#include <ctime>
-#include <csignal>
-#include <sys/time.h>
-#include <queue>
-#include "ErrorLog/ErrorLog.h"
-#include "json/json.h"
+#include <arpa/inet.h>          /* socket */
+#include <sys/epoll.h>          /* epoll */
+#include "ErrorLog/ErrorLog.h"  /* hzd:: LOG LOG_MSG LOG_FMT */
+#include "json/json.h"          /* hzd::json */
+#include "utils.h"              /* hzd::header */
+#include <memory>               /* unique_ptr */
 namespace hzd {
 
 #define CONN_LOG_IP_PORT_FMT "client IP=%s client Port = %u",inet_ntoa(sock_addr.sin_addr),ntohs(sock_addr.sin_port)
@@ -18,7 +15,7 @@ namespace hzd {
     {
         epoll_event ev{};
         ev.data.fd = socket_fd;
-        ev.events = EPOLLIN | EPOLLRDHUP;
+        ev.events = EPOLLIN | EPOLLRDHUP | EPOLLET;
         if(one_shot) ev.events = ev.events | EPOLLONESHOT;
         return epoll_ctl(epoll_fd,EPOLL_CTL_ADD,socket_fd,&ev);
     }
@@ -41,143 +38,57 @@ namespace hzd {
     }
 
     class conn {
-        bool set_recv_time_out(int sec,int usec)
-        {
-            set_time_out_timer(sec,usec);
-            if(setsockopt(socket_fd,SOL_SOCKET,SO_RCVTIMEO,&time_out_timer,sizeof(time_out_timer)) < 0)
-            {
-                LOG(Socket_Set_Opt,"set sock opt error");
-                return false;
-            }
-            return true;
-        }
-        void prepare_heart_beat()
-        {
-            heart_beat_send_time = time(nullptr);
-            json pack{
-                {"type","heart_beat"},
-                {"time",(double)heart_beat_send_time}
-            };
-            bzero(heart_beat_buffer,sizeof(heart_beat_buffer));
-            sprintf(heart_beat_buffer,"%s",pack.dump().c_str());
-        }
+        /* private member variable */
+        char read_buffer[4096] = {0};
+        char write_buffer[4096] = {0};
+        size_t read_cursor{0};
+        size_t write_cursor{0};
+        size_t write_total_bytes{0};
+        size_t read_total_bytes{0};
+        /* private member method */
         bool process_out_base()
         {
-            if(status == HEARTBEAT)
-            {
-                prepare_heart_beat();
-                if(send(socket_fd,heart_beat_buffer,sizeof(heart_beat_buffer),0) <= 0)
-                {
-                    status = BAD;
-                    return false;
-                }
-                heart_beat_already = true;
-                status = WAIT;
-                return true;
-            }
-            else if(status == OUT)
-            {
-                return process_out();
-            }
-            else
-            {
-                status = BAD;
-                return false;
-            }
+            return process_out();
         }
         bool process_in_base()
         {
-            if(status == WAIT)
+            return process_in();
+        }
+        bool send_base(const char* data,header_type type)
+        {
+            if(write_total_bytes <= 1)
             {
-                set_recv_time_out(2,0);
-                size_t ret = 0;
-                bzero(heart_beat_buffer,sizeof(heart_beat_buffer));
-                if((ret = recv(socket_fd,heart_beat_buffer,sizeof(heart_beat_buffer),MSG_PEEK)) <= 0)
+                LOG(Conn_Send,"send data = null");
+                return false;
+            }
+            header h{type,write_total_bytes};
+            if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
+            {
+                LOG(Conn_Send,"header send error");
+                return false;
+            }
+            size_t send_count = 0;
+            write_cursor = 0;
+            while(write_cursor < write_total_bytes)
+            {
+                bzero(write_buffer,sizeof(write_buffer));
+                memcpy(write_buffer,data+write_cursor,sizeof(write_buffer));
+                send_count = ::send(socket_fd,write_buffer,sizeof(write_buffer),0);
+                if(send_count <= 0)
                 {
-                    if(ret == -1 && errno == EAGAIN || errno == EWOULDBLOCK)
-                    {
-                        LOG_FMT(Heart_Beat_Timeout,"heart beat time out",CONN_LOG_IP_PORT_FMT);
-                        status = BAD;
-                        return false;
-                    }
-                    else if(ret == 0)
-                    {
-                        status = RDHUP;
-                        return false;
-                    }
-                    else
-                    {
-                        status = BAD;
-                        return false;
-                    }
-                }
-                if(heart_beat_buffer[0] == '{')
-                {
-                    json pack;
-                    std::string s(heart_beat_buffer);
-                    if(pack.load(s))
-                    {
-                        if(recv(socket_fd,heart_beat_buffer,sizeof(heart_beat_buffer),0) <= 0)
-                        {
-                            if(ret == -1 && errno == EAGAIN || errno == EWOULDBLOCK)
-                            {
-                                LOG_FMT(Heart_Beat_Timeout,"heart beat time out",CONN_LOG_IP_PORT_FMT);
-                                status = BAD;
-                                return false;
-                            }
-                            else if(ret == 0)
-                            {
-                                status = RDHUP;
-                                return false;
-                            }
-                            else
-                            {
-                                status = BAD;
-                                return false;
-                            }
-                        }
-                        if(pack["type"] == "heart_beat_ret")
-                        {
-                            last_in_time = time(nullptr);
-                            heart_beat_already = false;
-                            status = IN;
-                            set_recv_time_out(0,0);
-                            return true;
-                        }
-                    }
-                    status = BAD;
+                    LOG(Conn_Send,"data send error");
                     return false;
                 }
-                status = BAD;
-                return false;
+                write_cursor += send_count;
             }
-            else if(status == IN)
-            {
-                if(process_in())
-                {
-                    last_in_time = time(nullptr);
-                    return true;
-                }
-                return false;
-            }
-            else
-            {
-                return false;
-            }
+            return true;
         }
     protected:
         int socket_fd{-1};
         sockaddr_in sock_addr{};
-        char read_buffer[4096] = {0};
-        char write_buffer[4096] = {0};
-        char heart_beat_buffer[64] = {0};
-        int read_cursor{0};
-        int write_cursor{0};
-        int write_total_bytes{0};
         time_t heart_beat_send_time{0};
         struct timeval time_out_timer{2,0};
     public:
-        conn() = default;
         enum Status
         {
             NO,
@@ -189,34 +100,16 @@ namespace hzd {
             HEARTBEAT,
             WAIT,
         };
+        /* default constructor */
+        conn() = default;
+        /* virtual destructor */
+        virtual ~conn()
+        {
+            conn::close();
+        }
         /* static member variable*/
-        static struct sigaction* time_out_sigaction;
         static int epoll_fd;
         /* static member methods */
-        static void set_time_out_sigaction(struct sigaction* sigact)
-        {
-            if(!sigact) return;
-            hzd::conn::time_out_sigaction->sa_flags = sigact->sa_flags;
-            hzd::conn::time_out_sigaction->sa_mask = sigact->sa_mask;
-            hzd::conn::time_out_sigaction->sa_handler = sigact->sa_handler;
-            sigaction(SIGPROF,time_out_sigaction,nullptr);
-        }
-        /* common member variable */
-        Status status;
-        time_t last_in_time{time(nullptr)};
-        bool heart_beat_already{false};
-        /* common member methods */
-        virtual void init(int _socket_fd,sockaddr_in* _addr)
-        {
-            socket_fd = _socket_fd;
-            sock_addr = *_addr;
-            epoll_add(epoll_fd,socket_fd,false);
-        }
-        virtual sockaddr_in& addr()
-        {
-            return sock_addr;
-        }
-        virtual int fd(){return socket_fd;}
         static int epoll_add(int _epoll_fd,int _socket_fd,bool _one_shot)
         {
             return hzd::epoll_add(_epoll_fd,_socket_fd,_one_shot);
@@ -229,6 +122,60 @@ namespace hzd {
         {
             return hzd::epoll_del(_epoll_fd,_socket_fd);
         }
+        /* common member variable */
+        Status status;
+        time_t last_in_time{time(nullptr)};
+        bool heart_beat_already{false};
+        /* common base member methods */
+        bool send(const char* data,header_type type = header_type::BYTE)
+        {
+            write_total_bytes = strlen(data) + 1;
+            return send_base(data,type);
+        }
+        bool send(std::string& data,header_type type = header_type::BYTE)
+        {
+            write_total_bytes = data.size()+1;
+            return send_base(data.c_str(),type);
+        }
+        bool recv(std::string& data,header_type& type)
+        {
+            header h{};
+            if(::recv(socket_fd,&h,HEADER_SIZE,0) <= 0)
+            {
+                LOG(Conn_Recv,"recv header error");
+                return false;
+            }
+            read_total_bytes = h.size;
+            type = h.type;
+            size_t read_count = 0;
+            read_cursor = 0;
+            data.clear();
+            while(read_cursor < read_total_bytes)
+            {
+                bzero(read_buffer,sizeof(read_buffer));
+                read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),0);
+                if(read_count <= 0)
+                {
+                    LOG(Conn_Recv,"data recv error");
+                    return false;
+                }
+                data += read_buffer;
+                read_cursor += read_count;
+            }
+            return true;
+        }
+        /* common virtual member methods */
+        virtual void init(int _socket_fd,sockaddr_in* _addr)
+        {
+            socket_fd = _socket_fd;
+            sock_addr = *_addr;
+            epoll_add(epoll_fd,socket_fd,false);
+        }
+        virtual sockaddr_in& addr()
+        {
+            return sock_addr;
+        }
+        virtual int fd(){return socket_fd;}
         virtual void set_time_out_timer(int sec,int usec)
         {
             if(sec >= 0 && usec >= 0)
@@ -286,12 +233,9 @@ namespace hzd {
                 socket_fd = -1;
             }
         }
-        virtual ~conn()
-        {
-            conn::close();
-        }
+
     };
-    struct sigaction* conn::time_out_sigaction = nullptr;
+
     int conn::epoll_fd = -1;
 }
 

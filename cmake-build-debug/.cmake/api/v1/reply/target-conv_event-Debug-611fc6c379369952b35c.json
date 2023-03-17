@@ -95,8 +95,7 @@
 				1,
 				2,
 				3,
-				4,
-				5
+				4
 			]
 		}
 	],
@@ -125,12 +124,7 @@
 		},
 		{
 			"backtrace" : 1,
-			"path" : "ErrorLog/ErrorLog.h",
-			"sourceGroupIndex" : 1
-		},
-		{
-			"backtrace" : 1,
-			"path" : "json/json.h",
+			"path" : "utils.h",
 			"sourceGroupIndex" : 1
 		}
 	],

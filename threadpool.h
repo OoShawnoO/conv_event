@@ -1,11 +1,10 @@
 #ifndef CONV_EVENT_THREADPOOL_H
 #define CONV_EVENT_THREADPOOL_H
 
-#include <thread>
-#include <queue>
-#include <mutex>
-#include <semaphore>
-#include "ErrorLog/ErrorLog.h"
+#include <thread>               /* thread */
+#include <queue>                /* queue */
+#include <semaphore>            /* mutex semaphore */
+#include "ErrorLog/ErrorLog.h"  /* LOG LOG_MSG LOG_FMT */
 namespace hzd
 {
     template<class T>

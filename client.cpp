@@ -1,9 +1,8 @@
 #include <iostream>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
-#include <memory.h>
 #include <unistd.h>
+#include "utils.h"
 #include "json/json.h"
 
 using namespace std;
@@ -21,40 +20,21 @@ int main(){
         exit(-1);
     }
 
-    char data[64] = {'A','B','C','D','E'};
-    send(sockfd,data,sizeof(data),0);
-
-    json pack;
-    while(1){
-        if(send(sockfd,"i am client",12,0)<=0)
-        {
-            exit(-2);
-        }
-        std::cout << "i am client" << std::endl;
-        recv(sockfd,data,64,0);
-        std::cout << data  << std::endl;
-        sleep(10);
-//        bzero(data,64);
-//        if(recv(sockfd,data,64,MSG_PEEK)<=0)
-//        {
-//            exit(-1);
-//        }
-//        string s(data);
-//        int size = s.size() + 1;
-//        std::cout << s << std::endl;
-//        if(pack.load(s))
-//        {
-//            if(pack["type"] == "heart_beat")
-//            {
-//                std::cout << "1" << std::endl;
-//                pack["type"] = "heart_beat_ret";
-//                recv(sockfd,data,64,0);
-//                string a = pack.dump();
-//                send(sockfd,a.c_str(),a.size()+1,0);
-//                std::cout << "1" << std::endl;
-//            }
-//        }
-//        pack.clear();
+    header h;
+    h.type = hzd::header_type::BYTE;
+    string s = "i am client";
+    h.size = s.size() + 1;
+    send(sockfd,&h,HEADER_SIZE,0);
+    send(sockfd,s.c_str(),h.size,0);
+    h.size = 0;
+    recv(sockfd,&h,HEADER_SIZE,0);
+    char buf[1024] = {0};
+    size_t read_count = 0;
+    while(read_count < h.size)
+    {
+        bzero(buf,1024);
+        read_count += recv(sockfd,buf,1024,0);
+        std::cout << buf;
     }
     close(sockfd);
 }

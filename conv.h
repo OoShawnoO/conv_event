@@ -1,17 +1,8 @@
 #ifndef CONV_EVENT_CONV_H
 #define CONV_EVENT_CONV_H
 
-#include <iostream>
-#include <unordered_map>
-#include <type_traits>
-#include <utility>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/epoll.h>
-
-#include "ErrorLog/ErrorLog.h"
-#include "threadpool.h"
-#include "conn.h"
+#include "threadpool.h" /* thread_pool */
+#include "conn.h" /* conn */
 
 namespace hzd {
     template<class T>
@@ -263,30 +254,6 @@ namespace hzd {
                         LOG_FMT(None,"unknown error","client IP=%s client Port = %u",
                                 inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
                         CONNECTS_REMOVE_FD;
-                    }
-                }
-                for(auto connect = connects.begin();connect != connects.end();)
-                {
-                    if(connect->second->fd() == socket_fd) continue;
-                    time_t cur = time(nullptr);
-                    if(!connect->second->heart_beat_already && cur - connect->second->last_in_time > heart_beat_interval)
-                    {
-                        connect->second->status = conn::HEARTBEAT;
-                        epoll_mod(epoll_fd,connect->second->fd(),EPOLLOUT,false);
-                        connect->second->heart_beat_already = true;
-                    }
-                    else if(connect->second->heart_beat_already && cur-connect->second->last_in_time > time_out_timer_sec)
-                    {
-                        LOG(Heart_Beat_Timeout,"heart beat time out");
-                        connect->second->status = conn::BAD;
-                    }
-                    if(connect->second->status == conn::BAD)
-                    {
-                        CONNECTS_REMOVE_FD_OUT;
-                    }
-                    else
-                    {
-                        connect++;
                     }
                 }
             }
