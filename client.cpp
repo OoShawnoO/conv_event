@@ -24,17 +24,23 @@ int main(){
     h.type = hzd::header_type::BYTE;
     string s = "i am client";
     h.size = s.size() + 1;
-    send(sockfd,&h,HEADER_SIZE,0);
-    send(sockfd,s.c_str(),h.size,0);
-    h.size = 0;
-    recv(sockfd,&h,HEADER_SIZE,0);
-    char buf[1024] = {0};
-    size_t read_count = 0;
-    while(read_count < h.size)
+    while(1)
     {
-        bzero(buf,1024);
-        read_count += recv(sockfd,buf,1024,0);
-        std::cout << buf;
+        int x = send(sockfd,&h,HEADER_SIZE,0);
+        std::cout << x << std::endl;
+        x = send(sockfd,s.c_str(),h.size,0);
+        std::cout << x << std::endl;
     }
+
+//    h.size = 0;
+//    recv(sockfd,&h,HEADER_SIZE,0);
+//    char buf[1024] = {0};
+//    size_t read_count = 0;
+//    while(read_count < h.size)
+//    {
+//        bzero(buf,1024);
+//        read_count += recv(sockfd,buf,1024,0);
+//        std::cout << buf;
+//    }
     close(sockfd);
 }

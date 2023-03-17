@@ -7,23 +7,33 @@
 #include "json/json.h"          /* hzd::json */
 #include "utils.h"              /* hzd::header */
 #include <memory>               /* unique_ptr */
+#include <fcntl.h>              /* fcntl */
 namespace hzd {
 
 #define CONN_LOG_IP_PORT_FMT "client IP=%s client Port = %u",inet_ntoa(sock_addr.sin_addr),ntohs(sock_addr.sin_port)
 
-    static int epoll_add(int epoll_fd,int socket_fd,bool one_shot)
+    static void block_none(int fd)
+    {
+        int option = fcntl(fd,F_GETFL);
+        int new_option = option | O_NONBLOCK;
+        fcntl(fd,F_SETFL,new_option);
+    }
+
+    static int epoll_add(int epoll_fd,int socket_fd,bool et,bool one_shot)
     {
         epoll_event ev{};
         ev.data.fd = socket_fd;
-        ev.events = EPOLLIN | EPOLLRDHUP | EPOLLET;
+        ev.events = EPOLLIN | EPOLLRDHUP;
+//        if(et) ev.events = ev.events | EPOLLET;
         if(one_shot) ev.events = ev.events | EPOLLONESHOT;
         return epoll_ctl(epoll_fd,EPOLL_CTL_ADD,socket_fd,&ev);
     }
-    static int epoll_mod(int epoll_fd,int socket_fd,uint32_t ev,bool one_shot)
+    static int epoll_mod(int epoll_fd,int socket_fd,uint32_t ev,bool et,bool one_shot)
     {
         epoll_event event{};
         event.data.fd = socket_fd;
         event.events = ev | EPOLLRDHUP;
+        if(et){ event.events = event.events | EPOLLET; }
         if(one_shot)
         {
             event.events = event.events | EPOLLONESHOT;
@@ -39,6 +49,7 @@ namespace hzd {
 
     class conn {
         /* private member variable */
+        bool ET{false};
         char read_buffer[4096] = {0};
         char write_buffer[4096] = {0};
         size_t read_cursor{0};
@@ -81,10 +92,13 @@ namespace hzd {
                 }
                 write_cursor += send_count;
             }
+            write_cursor = 0;
+            write_total_bytes = 0;
             return true;
         }
     protected:
         int socket_fd{-1};
+        int epoll_fd{0};
         sockaddr_in sock_addr{};
     public:
         enum Status
@@ -104,20 +118,7 @@ namespace hzd {
             conn::close();
         }
         /* static member variable*/
-        static int epoll_fd;
         /* static member methods */
-        static int epoll_add(int _epoll_fd,int _socket_fd,bool _one_shot)
-        {
-            return hzd::epoll_add(_epoll_fd,_socket_fd,_one_shot);
-        }
-        static int epoll_mod(int _epoll_fd,int _socket_fd,uint32_t _ev,bool _one_shot)
-        {
-            return hzd::epoll_mod(_epoll_fd,_socket_fd,_ev,_one_shot);
-        }
-        static int epoll_del(int _epoll_fd,int _socket_fd)
-        {
-            return hzd::epoll_del(_epoll_fd,_socket_fd);
-        }
         /* common member variable */
         Status status{OK};
         /* common base member methods */
@@ -156,14 +157,21 @@ namespace hzd {
                 data += read_buffer;
                 read_cursor += read_count;
             }
+            read_cursor = 0;
+            read_total_bytes = 0;
             return true;
         }
+        int next(EPOLL_EVENTS event) const{
+            return epoll_mod(epoll_fd,socket_fd,event,ET,true);
+        }
         /* common virtual member methods */
-        virtual void init(int _socket_fd,sockaddr_in* _addr)
+        virtual void init(int _socket_fd,sockaddr_in* _addr,int _epoll_fd,bool et)
         {
             socket_fd = _socket_fd;
             sock_addr = *_addr;
-            epoll_add(epoll_fd,socket_fd,false);
+            epoll_fd = _epoll_fd;
+            ET = et;
+            epoll_add(epoll_fd,socket_fd,ET,true);
         }
         virtual sockaddr_in& addr()
         {
@@ -216,10 +224,7 @@ namespace hzd {
                 socket_fd = -1;
             }
         }
-
     };
-
-    int conn::epoll_fd = -1;
 }
 
 #endif

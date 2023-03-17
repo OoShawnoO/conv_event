@@ -10,11 +10,13 @@ public:
         hzd::header_type t = hzd::header_type::BYTE;
         recv(s,t);
         std::cout << s << std::endl;
-        epoll_mod(epoll_fd,socket_fd,EPOLLOUT,true);
+//        next(EPOLLOUT);
+//        next(EPOLLIN);
         return true;
     }
     bool process_out() override
     {
+
         send("    do\n"
              "    {\n"
              "        showMemoryInfo();\n"
@@ -1008,7 +1010,7 @@ public:
              "\n"
              "\n"
              "    }while(1);");
-        epoll_mod(epoll_fd,socket_fd,EPOLLIN,false);
+        next(EPOLLIN);
         return true;
     }
 
@@ -1017,7 +1019,7 @@ using namespace hzd;
 using namespace std;
 int main()
 {
-    conv<conn_a> base("127.0.0.1",9999);
+    conv<conn_a> base("127.0.0.1",9999,false);
 //    base.enable_multi_thread();
     base.enable_addr_reuse();
     base.enable_port_reuse();

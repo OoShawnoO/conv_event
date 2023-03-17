@@ -9,6 +9,7 @@ namespace hzd {
     class conv {
         static_assert(std::is_base_of_v<conn,T>,"must derived from class hzd::conn.");
     protected:
+        bool ET{false};
         std::string ip;
         short port;
         int socket_fd{-1};
@@ -23,7 +24,7 @@ namespace hzd {
         threadpool<T>* thread_pool = nullptr;
 
     public:
-        conv(std::string _ip,short _port):ip(std::move(_ip)),port(_port)
+        conv(std::string _ip,short _port,bool ET = false):ip(std::move(_ip)),port(_port),ET(ET)
         {
             int temp_fd = socket(AF_INET,SOCK_STREAM,0);
             if(temp_fd < 0)
@@ -44,29 +45,6 @@ namespace hzd {
                 exit(-1);
             }
             socket_fd = temp_fd;
-            events = new epoll_event[max_events_count];
-            if(!events)
-            {
-                LOG(Bad_Malloc,"epoll_event bad new");
-                close();
-                exit(-1);
-            }
-            epoll_fd = epoll_create(1024);
-            T::epoll_fd = epoll_fd;
-            if(epoll_fd < 0)
-            {
-                LOG(Epoll_Create,"epoll create error");
-                close();
-                perror("epoll_create");
-                exit(-1);
-            }
-            if(epoll_add(epoll_fd,socket_fd,false) < 0)
-            {
-                LOG(Epoll_Add,"epoll add error");
-                close();
-                perror("epoll_add");
-                exit(-1);
-            }
         }
         ~conv()
         {
@@ -146,6 +124,28 @@ namespace hzd {
         }while(0)
         void wait(int time_out = 0)
         {
+            events = new epoll_event[max_events_count];
+            if(!events)
+            {
+                LOG(Bad_Malloc,"epoll_event bad new");
+                close();
+                exit(-1);
+            }
+            epoll_fd = epoll_create(1024);
+            if(epoll_fd < 0)
+            {
+                LOG(Epoll_Create,"epoll create error");
+                close();
+                perror("epoll_create");
+                exit(-1);
+            }
+            if(epoll_add(epoll_fd,socket_fd,ET,false) < 0)
+            {
+                LOG(Epoll_Add,"epoll add error");
+                close();
+                perror("epoll_add");
+                exit(-1);
+            }
             if(listen(socket_fd,listen_queue_count) < 0)
             {
                 LOG(Socket_Listen,"listen socket error");
@@ -186,7 +186,7 @@ namespace hzd {
                             continue;
                         }
                         connects[client_fd] = new T;
-                        connects[client_fd]->init(client_fd, &client_addr);
+                        connects[client_fd]->init(client_fd, &client_addr,epoll_fd,ET);
                         current_connect_count++;
                     }
                     else if(events[event_index].events & EPOLLRDHUP)
