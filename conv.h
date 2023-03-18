@@ -8,7 +8,11 @@ namespace hzd {
     template<class T>
     class conv {
         /* static assert*/
+        #if __cplusplus > 201703L
         static_assert(std::is_base_of_v<conn,T>,"must derived from class hzd::conn.");
+        #else
+        static_assert(std::is_base_of<conn,T>::value,"must derived from class hzd::conn.");
+        #endif
     protected:
         /* protected member variable */
         bool ET{false};

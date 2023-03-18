@@ -5,8 +5,37 @@
 #include <queue>                /* queue */
 #include <semaphore>            /* mutex semaphore */
 #include "ErrorLog/ErrorLog.h"  /* LOG LOG_MSG LOG_FMT */
+#if __cplusplus <= 201703L
+#include <condition_variable>
+#endif
 namespace hzd
 {
+
+    #if __cplusplus <= 201703L
+    template<size_t _least_max_value = SIZE_MAX>
+    class counting_semaphore{
+        static_assert(_least_max_value >= 0,"least max value must more than 0");
+        static_assert(_least_max_value <= SIZE_MAX,"least max value must lower than size_t max");
+        std::mutex mtx;
+        std::condition_variable cv;
+        size_t count{0};
+    public:
+        explicit counting_semaphore(size_t desire):count(desire){}
+        void acquire()
+        {
+            std::unique_lock<std::mutex> lock(mtx);
+            cv.wait(lock,[&]{return count > 0;});
+            --count;
+        }
+        void release()
+        {
+            std::unique_lock<std::mutex> lock(mtx);
+            ++count;
+            cv.notify_one();
+        }
+    };
+    #endif
+
     template<class T>
     class threadpool {
     private:
@@ -15,7 +44,11 @@ namespace hzd
         std::mutex mutex;
         std::queue<T*> process_pool;
         std::thread* threads;
+        #if __cplusplus > 201703L
         std::counting_semaphore<0> sem{0};
+        #else
+        hzd::counting_semaphore<0> sem{0};
+        #endif
         bool stop{false};
     public:
         explicit threadpool(int _thread_count = 8,int _max_process_count = 10000)
