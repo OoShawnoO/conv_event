@@ -1,6 +1,7 @@
 #ifndef CONV_EVENT_CONN_H
 #define CONV_EVENT_CONN_H
 
+#include <unistd.h>             /* close */
 #include <arpa/inet.h>          /* socket */
 #include <sys/epoll.h>          /* epoll */
 #include "ErrorLog/ErrorLog.h"  /* hzd:: LOG LOG_MSG LOG_FMT */
@@ -49,9 +50,9 @@ namespace hzd {
 
     class conn {
         /* private member variable */
+        bool working{false};
         bool ET{false};
         bool one_shot{false};
-        bool working{false};
         char read_buffer[4096] = {0};
         char write_buffer[4096] = {0};
         size_t read_cursor{0};
@@ -67,19 +68,8 @@ namespace hzd {
         {
             return process_in();
         }
-        bool send_base(const char* data,header_type type)
+        bool send_base(const char* data)
         {
-            if(write_total_bytes <= 1)
-            {
-                LOG(Conn_Send,"send data = null");
-                return false;
-            }
-            header h{type,write_total_bytes};
-            if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
-            {
-                LOG(Conn_Send,"header send error");
-                return false;
-            }
             size_t send_count;
             write_cursor = 0;
             while(write_cursor < write_total_bytes)
@@ -96,6 +86,32 @@ namespace hzd {
             }
             write_cursor = 0;
             write_total_bytes = 0;
+            return true;
+        }
+        bool recv_base(std::string& data)
+        {
+            if(read_total_bytes <= 0)
+            {
+                LOG(Conn_Recv,"recv size = 0");
+                return false;
+            }
+            size_t read_count;
+            read_cursor = 0;
+            data.clear();
+            while(read_cursor < read_total_bytes)
+            {
+                bzero(read_buffer,sizeof(read_buffer));
+                read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),MSG_DONTWAIT);
+                if(read_count <= 0)
+                {
+                    LOG(Conn_Recv,"data recv error");
+                    return false;
+                }
+                data += read_buffer;
+                read_cursor += read_count;
+            }
+            read_cursor = 0;
+            read_total_bytes = 0;
             return true;
         }
     protected:
@@ -127,12 +143,44 @@ namespace hzd {
         bool send(const char* data,header_type type = header_type::BYTE)
         {
             write_total_bytes = strlen(data) + 1;
-            return send_base(data,type);
+            if(write_total_bytes <= 1)
+            {
+                LOG(Conn_Send,"send data = null");
+                return false;
+            }
+            header h{type,write_total_bytes};
+            if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
+            {
+                LOG(Conn_Send,"header send error");
+                return false;
+            }
+            return send_base(data);
         }
         bool send(std::string& data,header_type type = header_type::BYTE)
         {
             write_total_bytes = data.size()+1;
-            return send_base(data.c_str(),type);
+            if(write_total_bytes <= 1)
+            {
+                LOG(Conn_Send,"send data = null");
+                return false;
+            }
+            header h{type,write_total_bytes};
+            if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
+            {
+                LOG(Conn_Send,"header send error");
+                return false;
+            }
+            return send_base(data.c_str());
+        }
+        bool send(std::string& data,size_t size)
+        {
+            write_total_bytes = size;
+            if(write_total_bytes <= 0)
+            {
+                LOG(Conn_Send,"send data = null");
+                return false;
+            }
+            return send_base(data.c_str());
         }
         bool recv(std::string& data,header_type& type)
         {
@@ -144,24 +192,12 @@ namespace hzd {
             }
             read_total_bytes = h.size;
             type = h.type;
-            size_t read_count;
-            read_cursor = 0;
-            data.clear();
-            while(read_cursor < read_total_bytes)
-            {
-                bzero(read_buffer,sizeof(read_buffer));
-                read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),0);
-                if(read_count <= 0)
-                {
-                    LOG(Conn_Recv,"data recv error");
-                    return false;
-                }
-                data += read_buffer;
-                read_cursor += read_count;
-            }
-            read_cursor = 0;
-            read_total_bytes = 0;
-            return true;
+            return recv_base(data);
+        }
+        bool recv(std::string& data,size_t size)
+        {
+            read_total_bytes = size;
+            return recv_base(data);
         }
         int next(EPOLL_EVENTS event) const{
             return epoll_mod(epoll_fd,socket_fd,event,ET,one_shot);
