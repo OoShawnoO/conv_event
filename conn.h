@@ -4,7 +4,7 @@
 #include <arpa/inet.h>          /* socket */
 #include <sys/epoll.h>          /* epoll */
 #include "ErrorLog/ErrorLog.h"  /* hzd:: LOG LOG_MSG LOG_FMT */
-#include "json/json.h"          /* hzd::json */
+#include <cstring>              /* memcpy bzero memset */
 #include "utils.h"              /* hzd::header */
 #include <memory>               /* unique_ptr */
 #include <fcntl.h>              /* fcntl */
