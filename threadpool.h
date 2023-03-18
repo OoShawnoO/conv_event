@@ -69,7 +69,12 @@ namespace hzd
                 {
                     continue;
                 }
-                con->process();
+                if(!con->is_working())
+                {
+                    con->set_working();
+                    con->process();
+                    con->cancel_working();
+                }
             }
         }
 

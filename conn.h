@@ -50,6 +50,8 @@ namespace hzd {
     class conn {
         /* private member variable */
         bool ET{false};
+        bool one_shot{false};
+        bool working{false};
         char read_buffer[4096] = {0};
         char write_buffer[4096] = {0};
         size_t read_cursor{0};
@@ -162,16 +164,20 @@ namespace hzd {
             return true;
         }
         int next(EPOLL_EVENTS event) const{
-            return epoll_mod(epoll_fd,socket_fd,event,ET,true);
+            return epoll_mod(epoll_fd,socket_fd,event,ET,one_shot);
         }
+        bool is_working() const{ return working; }
+        void set_working() { working = true; }
+        void cancel_working() { working = false; }
         /* common virtual member methods */
-        virtual void init(int _socket_fd,sockaddr_in* _addr,int _epoll_fd,bool et)
+        virtual void init(int _socket_fd,sockaddr_in* _addr,int _epoll_fd,bool et,bool _one_shot)
         {
             socket_fd = _socket_fd;
             sock_addr = *_addr;
             epoll_fd = _epoll_fd;
             ET = et;
-            epoll_add(epoll_fd,socket_fd,ET,true);
+            one_shot = _one_shot;
+            epoll_add(epoll_fd,socket_fd,ET,one_shot);
         }
         virtual sockaddr_in& addr()
         {

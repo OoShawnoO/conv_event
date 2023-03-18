@@ -30,6 +30,7 @@ int main(){
         std::cout << x << std::endl;
         x = send(sockfd,s.c_str(),h.size,0);
         std::cout << x << std::endl;
+        sleep(5);
     }
 
 //    h.size = 0;

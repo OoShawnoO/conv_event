@@ -9,7 +9,9 @@ namespace hzd {
     class conv {
         static_assert(std::is_base_of_v<conn,T>,"must derived from class hzd::conn.");
     protected:
+        /* protected member variable */
         bool ET{false};
+        bool one_shot{false};
         std::string ip;
         short port;
         int socket_fd{-1};
@@ -24,7 +26,8 @@ namespace hzd {
         threadpool<T>* thread_pool = nullptr;
 
     public:
-        conv(std::string _ip,short _port,bool ET = false):ip(std::move(_ip)),port(_port),ET(ET)
+        conv(std::string _ip,short _port,bool _one_shot = false,bool ET = false)
+        :ip(std::move(_ip)),port(_port),one_shot(_one_shot),ET(ET)
         {
             int temp_fd = socket(AF_INET,SOCK_STREAM,0);
             if(temp_fd < 0)
@@ -51,6 +54,18 @@ namespace hzd {
             close();
         }
 
+        /* define */
+        #define CONNECTS_REMOVE_FD do           \
+        {                                       \
+            connects[cur_fd]->close();          \
+            current_connect_count--;            \
+            auto iter = connects.find(cur_fd);  \
+            if(iter != connects.end())          \
+            {                                   \
+                connects.erase(iter);           \
+            }                                   \
+        }while(0)
+        /* common member methods */
         void close()
         {
             if(socket_fd != -1)
@@ -103,26 +118,14 @@ namespace hzd {
             delete thread_pool;
             thread_pool = nullptr;
         }
+        void enable_et() { ET = true; }
+        void disable_et() { ET = false; }
+        void enable_one_shot() { one_shot = true; }
+        void disable_one_shot() { one_shot = false; }
         void set_max_events_count(int size){if(size >= 0) max_events_count = size;}
         void set_max_connect_count(int size){if(size >= 0) max_connect_count = size;}
         void set_listen_queue_count(int size){if(size >= 0) listen_queue_count = size;}
-        #define CONNECTS_REMOVE_FD_OUT do{      \
-            LOG_MSG("status:bad client close"); \
-            connect->second->close();           \
-            current_connect_count--;            \
-            connect = connects.erase(connect);  \
-        }while(0)
-
-        #define CONNECTS_REMOVE_FD do{          \
-            connects[cur_fd]->close();          \
-            current_connect_count--;            \
-            auto iter = connects.find(cur_fd);  \
-            if(iter != connects.end())          \
-            {                                   \
-                connects.erase(iter);           \
-            }                                   \
-        }while(0)
-        void wait(int time_out = 0)
+        void wait(int time_out = -1)
         {
             events = new epoll_event[max_events_count];
             if(!events)
@@ -186,7 +189,7 @@ namespace hzd {
                             continue;
                         }
                         connects[client_fd] = new T;
-                        connects[client_fd]->init(client_fd, &client_addr,epoll_fd,ET);
+                        connects[client_fd]->init(client_fd, &client_addr,epoll_fd,ET,one_shot);
                         current_connect_count++;
                     }
                     else if(events[event_index].events & EPOLLRDHUP)
