@@ -16,9 +16,9 @@ namespace hzd
         std::queue<T*> process_pool;
         std::thread* threads;
         std::counting_semaphore<0> sem{0};
-        bool stop;
+        bool stop{false};
     public:
-        threadpool(int _thread_count = 8,int _max_process_count = 10000)
+        explicit threadpool(int _thread_count = 8,int _max_process_count = 10000)
         : thread_count(_thread_count),max_process_count(_max_process_count)
         {
             if(thread_count <= 0 || max_process_count <= 0)

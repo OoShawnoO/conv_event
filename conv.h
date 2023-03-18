@@ -7,6 +7,7 @@
 namespace hzd {
     template<class T>
     class conv {
+        /* static assert*/
         static_assert(std::is_base_of_v<conn,T>,"must derived from class hzd::conn.");
     protected:
         /* protected member variable */
@@ -24,8 +25,8 @@ namespace hzd {
         int current_connect_count{0};
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool = nullptr;
-
     public:
+        /* Constructor */
         conv(std::string _ip,short _port,bool _one_shot = false,bool ET = false)
         :ip(std::move(_ip)),port(_port),one_shot(_one_shot),ET(ET)
         {
@@ -49,11 +50,11 @@ namespace hzd {
             }
             socket_fd = temp_fd;
         }
+        /* Destructor */
         ~conv()
         {
             close();
         }
-
         /* define */
         #define CONNECTS_REMOVE_FD do           \
         {                                       \
