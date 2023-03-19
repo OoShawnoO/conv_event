@@ -52,6 +52,9 @@
     ```
 - Edge Triggered
    ```c++
+    /* it works well when you read or write all data form buffer,
+     * but when you need read a part of buffer,it will not trigger
+     * process_in or process_out until new data coming.*/
     conv.enable_et(); /* enable ET */
     conv.disable_et(); /* disable ET */
    ```
