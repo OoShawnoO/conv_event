@@ -73,6 +73,12 @@ namespace hzd {
             }                                   \
         }while(0)
         /* common member methods */
+        /**
+          * @brief close all fd and delete the allocated data
+          * @note None
+          * @param None
+          * @retval None
+          */
         void close()
         {
             if(socket_fd != -1)
@@ -93,26 +99,57 @@ namespace hzd {
             thread_pool = nullptr;
 
         }
+        /**
+          * @brief enable address reuse
+          * @note None
+          * @param None
+          * @retval None
+          */
         void enable_addr_reuse()
         {
             int opt = 1;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEADDR,(const void*)&opt,sizeof(opt));
         }
+        /**
+          * @brief disable address reuse
+          * @note None
+          * @param None
+          * @retval None
+          */
         void disable_add_reuse()
         {
             int opt = 0;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEADDR,(const void*)&opt,sizeof(opt));
         }
+        /**
+          * @brief enable port reuse
+          * @note None
+          * @param None
+          * @retval None
+          */
         void enable_port_reuse()
         {
             int opt = 1;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEPORT,(const void*)&opt,sizeof(opt));
         }
+        /**
+          * @brief disable port reuse
+          * @note None
+          * @param None
+          * @retval None
+          */
         void disable_port_reuse()
         {
             int opt = 0;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEPORT,(const void*)&opt,sizeof(opt));
         }
+        /**
+          * @brief enable using multi-thread
+          * @note None
+          * @param thread_count working thread count
+          * @param max_process_count max process cout
+          * @retval None
+          */
         void enable_multi_thread(int thread_count = 8,int max_process_count = 10000)
         {
             if(!thread_pool)
@@ -120,18 +157,72 @@ namespace hzd {
                 thread_pool = new threadpool<T>(thread_count,max_process_count);
             }
         }
+        /**
+          * @brief disable using multi-thread
+          * @note None
+          * @param None
+          * @retval None
+          */
         void disable_multi_thread()
         {
             delete thread_pool;
             thread_pool = nullptr;
         }
+        /**
+          * @brief enable et model
+          * @note None
+          * @param None
+          * @retval None
+          */
         void enable_et() { ET = true; }
+        /**
+          * @brief disable et model
+          * @note None
+          * @param None
+          * @retval None
+          */
         void disable_et() { ET = false; }
+        /**
+          * @brief enable one shot trigger
+          * @note None
+          * @param None
+          * @retval None
+          */
         void enable_one_shot() { one_shot = true; }
+        /**
+          * @brief disable one shot trigger
+          * @note None
+          * @param None
+          * @retval None
+          */
         void disable_one_shot() { one_shot = false; }
+        /**
+          * @brief set max events count
+          * @note None
+          * @param size size
+          * @retval None
+          */
         void set_max_events_count(int size){if(size >= 0) max_events_count = size;}
+        /**
+          * @brief set max connection count
+          * @note None
+          * @param size size
+          * @retval None
+          */
         void set_max_connect_count(int size){if(size >= 0) max_connect_count = size;}
+        /**
+          * @brief set listen queue size
+          * @note None
+          * @param size size
+          * @retval None
+          */
         void set_listen_queue_count(int size){if(size >= 0) listen_queue_count = size;}
+        /**
+          * @brief start epoll
+          * @note None
+          * @param time_out epoll_wait's time out
+          * @retval None
+          */
         void wait(int time_out = -1)
         {
             events = new epoll_event[max_events_count];
