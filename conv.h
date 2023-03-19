@@ -1,9 +1,10 @@
 #ifndef CONV_EVENT_CONV_H
 #define CONV_EVENT_CONV_H
 
+#include "conn.h"       /* conn */
 #include "threadpool.h" /* thread_pool */
-#include "conn.h" /* conn */
-#include <signal.h>
+#include <csignal>      /* signal */
+#include <deque>
 
 namespace hzd {
     template<class T>
@@ -14,6 +15,64 @@ namespace hzd {
         #else
         static_assert(std::is_base_of<conn,T>::value,"must derived from class hzd::conn.");
         #endif
+
+        /**
+          * @brief prepare epoll event
+          * @note None
+          * @param None
+          * @retval None
+          */
+        void _prepare_epoll_event_()
+        {
+            if(!events)
+                events = new epoll_event[max_events_count];
+            if(!events)
+            {
+                LOG(Bad_Malloc,"epoll_event bad new");
+                close();
+                exit(-1);
+            }
+            if(epoll_fd == -1)
+                epoll_fd = epoll_create(1024);
+            if(epoll_fd < 0)
+            {
+                LOG(Epoll_Create,"epoll create error");
+                close();
+                perror("epoll_create");
+                exit(-1);
+            }
+        }
+        /**
+          * @brief listen socket
+          * @note None
+          * @param None
+          * @retval None
+          */
+        void _listen_()
+        {
+            if(listen(socket_fd,listen_queue_count) < 0)
+            {
+                LOG(Socket_Listen,"listen socket error");
+                close();
+                exit(-1);
+            }
+        }
+        /**
+          * @brief register listen fd to epoll event
+          * @note None
+          * @param None
+          * @retval None
+          */
+        void _register_listen_fd_()
+        {
+            if(epoll_add(epoll_fd,socket_fd,ET,false) < 0)
+            {
+                LOG(Epoll_Add,"epoll add error");
+                close();
+                perror("epoll_add");
+                exit(-1);
+            }
+        }
     protected:
         /* protected member variable */
         bool ET{false};
@@ -26,9 +85,9 @@ namespace hzd {
         epoll_event* events{nullptr};
         int max_events_count{1024};
         int listen_queue_count{32};
-        int max_connect_count{1024};
+        int max_connect_count{10000};
         int current_connect_count{0};
-        std::unordered_map<int,T*> connects;
+        std::unordered_map<int,std::shared_ptr<T>> connects;
         threadpool<T>* thread_pool = nullptr;
     public:
         /* Constructor */
@@ -225,41 +284,11 @@ namespace hzd {
           */
         void wait(int time_out = -1)
         {
-            events = new epoll_event[max_events_count];
-            if(!events)
-            {
-                LOG(Bad_Malloc,"epoll_event bad new");
-                close();
-                exit(-1);
-            }
-            epoll_fd = epoll_create(1024);
-            if(epoll_fd < 0)
-            {
-                LOG(Epoll_Create,"epoll create error");
-                close();
-                perror("epoll_create");
-                exit(-1);
-            }
-            if(epoll_add(epoll_fd,socket_fd,ET,false) < 0)
-            {
-                LOG(Epoll_Add,"epoll add error");
-                close();
-                perror("epoll_add");
-                exit(-1);
-            }
-            if(listen(socket_fd,listen_queue_count) < 0)
-            {
-                LOG(Socket_Listen,"listen socket error");
-                close();
-                exit(-1);
-            }
-            if(!events)
-            {
-                LOG(Pointer_To_Null,"epoll_events array is nullptr");
-                close();
-                exit(-1);
-            }
+            _prepare_epoll_event_();
+            _listen_();
+            _register_listen_fd_();
             int ret;
+            int cur_fd;
             while(true)
             {
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) < 0)
@@ -277,7 +306,7 @@ namespace hzd {
                 }
                 for(int event_index = 0;event_index < ret; event_index++)
                 {
-                    int cur_fd = events[event_index].data.fd;
+                    cur_fd = events[event_index].data.fd;
                     if(cur_fd == socket_fd) {
                         sockaddr_in client_addr{};
                         socklen_t len = sizeof(client_addr);
@@ -286,7 +315,7 @@ namespace hzd {
                             ::close(client_fd);
                             continue;
                         }
-                        connects[client_fd] = new T;
+                        connects[client_fd] = std::shared_ptr<T>(new T);
                         connects[client_fd]->init(client_fd, &client_addr,epoll_fd,ET,one_shot);
                         current_connect_count++;
                     }
@@ -312,23 +341,6 @@ namespace hzd {
                         }
                         CONNECTS_REMOVE_FD;
                     }
-                    else if(events[event_index].events & EPOLLIN)
-                    {
-                        connects[cur_fd]->status = conn::IN;
-                        if(thread_pool)
-                        {
-                            thread_pool->add(connects[cur_fd]);
-                        }
-                        else
-                        {
-                            if(!connects[cur_fd]->process())
-                            {
-                                LOG_FMT(Epoll_Read,"epoll read error","client IP=%s client Port = %u",
-                                        inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
-                                CONNECTS_REMOVE_FD;
-                            }
-                        }
-                    }
                     else if(events[event_index].events & EPOLLOUT)
                     {
                         connects[cur_fd]->status = conn::OUT;
@@ -341,6 +353,23 @@ namespace hzd {
                             if(!connects[cur_fd]->process())
                             {
                                 LOG_FMT(Epoll_Write,"epoll write error","client IP=%s client Port = %u",
+                                        inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
+                                CONNECTS_REMOVE_FD;
+                            }
+                        }
+                    }
+                    else if(events[event_index].events & EPOLLIN)
+                    {
+                        connects[cur_fd]->status = conn::IN;
+                        if(thread_pool)
+                        {
+                            thread_pool->add(connects[cur_fd]);
+                        }
+                        else
+                        {
+                            if(!connects[cur_fd]->process())
+                            {
+                                LOG_FMT(Epoll_Read,"epoll read error","client IP=%s client Port = %u",
                                         inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
                                 CONNECTS_REMOVE_FD;
                             }

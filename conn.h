@@ -4,6 +4,7 @@
 #include <unistd.h>             /* close */
 #include <arpa/inet.h>          /* socket */
 #include <sys/epoll.h>          /* epoll */
+#define NO_ERROR_LOG
 #include "ErrorLog/ErrorLog.h"  /* hzd:: LOG LOG_MSG LOG_FMT */
 #include <cstring>              /* memcpy bzero memset */
 #include "utils.h"              /* hzd::header */
@@ -84,8 +85,8 @@ namespace hzd {
         bool working{false};
         bool ET{false};
         bool one_shot{false};
-        char read_buffer[4096] = {0};
-        char write_buffer[4096] = {0};
+        char read_buffer[2048] = {0};
+        char write_buffer[2048] = {0};
         size_t read_cursor{0};
         size_t write_cursor{0};
         size_t write_total_bytes{0};
@@ -301,6 +302,9 @@ namespace hzd {
         bool is_working() const{ return working; }
         void set_working() { working = true; }
         void cancel_working() { working = false; }
+        void notify_close() {
+            status = CLOSE;
+        }
         /* common virtual member methods */
         virtual void init(int _socket_fd,sockaddr_in* _addr,int _epoll_fd,bool et,bool _one_shot)
         {
@@ -368,6 +372,9 @@ namespace hzd {
         {
             switch(status)
             {
+                case CLOSE : {
+                    return false;
+                }
                 case IN : {
                     return process_in_base();
                 }

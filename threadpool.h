@@ -4,7 +4,6 @@
 #include <thread>               /* thread */
 #include <queue>                /* queue */
 #include <semaphore>            /* mutex semaphore */
-//#define NO_ERROR_LOG
 #include "ErrorLog/ErrorLog.h"  /* LOG LOG_MSG LOG_FMT */
 #include <unordered_map>        /* unordered_map */
 #if __cplusplus <= 201703L
@@ -44,7 +43,7 @@ namespace hzd
         int thread_count;
         int max_process_count;
         std::mutex mutex;
-        std::queue<T*> process_pool;
+        std::queue<std::shared_ptr<T>> process_pool;
         std::thread* threads;
         #if __cplusplus > 201703L
         std::counting_semaphore<0> sem{0};
@@ -97,7 +96,7 @@ namespace hzd
                 {
                     continue;
                 }
-                T* con = process_pool.front();
+                auto con = process_pool.front();
                 process_pool.pop();
                 mutex.unlock();
                 if(!con)
@@ -113,7 +112,7 @@ namespace hzd
             }
         }
 
-        bool add(T* t)
+        bool add(std::shared_ptr<T> t)
         {
             mutex.lock();
             if(process_pool.size() > max_process_count)
