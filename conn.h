@@ -25,7 +25,7 @@ namespace hzd {
         epoll_event ev{};
         ev.data.fd = socket_fd;
         ev.events = EPOLLIN | EPOLLRDHUP;
-//        if(et) ev.events = ev.events | EPOLLET;
+        if(et) ev.events = ev.events | EPOLLET;
         if(one_shot) ev.events = ev.events | EPOLLONESHOT;
         return epoll_ctl(epoll_fd,EPOLL_CTL_ADD,socket_fd,&ev);
     }
@@ -76,8 +76,7 @@ namespace hzd {
             {
                 bzero(write_buffer,sizeof(write_buffer));
                 memcpy(write_buffer,data+write_cursor,sizeof(write_buffer));
-                send_count = ::send(socket_fd,write_buffer,sizeof(write_buffer),0);
-                if(send_count <= 0)
+                if((send_count = ::send(socket_fd,write_buffer,sizeof(write_buffer),0))<= 0)
                 {
                     LOG(Conn_Send,"data send error");
                     return false;
@@ -101,8 +100,7 @@ namespace hzd {
             while(read_cursor < read_total_bytes)
             {
                 bzero(read_buffer,sizeof(read_buffer));
-                read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),MSG_DONTWAIT);
-                if(read_count <= 0)
+                if((read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),MSG_DONTWAIT))<=0)
                 {
                     LOG(Conn_Recv,"data recv error");
                     return false;
@@ -127,6 +125,7 @@ namespace hzd {
             OUT,
             RDHUP,
             ERROR,
+            CLOSE,
         };
         /* default constructor */
         conn() = default;

@@ -3,6 +3,7 @@
 
 #include "threadpool.h" /* thread_pool */
 #include "conn.h" /* conn */
+#include <signal.h>
 
 namespace hzd {
     template<class T>
@@ -25,7 +26,7 @@ namespace hzd {
         epoll_event* events{nullptr};
         int max_events_count{1024};
         int listen_queue_count{32};
-        int max_connect_count{512};
+        int max_connect_count{1024};
         int current_connect_count{0};
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool = nullptr;
@@ -53,6 +54,7 @@ namespace hzd {
                 exit(-1);
             }
             socket_fd = temp_fd;
+            signal(SIGPIPE,SIG_IGN);
         }
         /* Destructor */
         ~conv()
@@ -196,6 +198,10 @@ namespace hzd {
                         connects[client_fd] = new T;
                         connects[client_fd]->init(client_fd, &client_addr,epoll_fd,ET,one_shot);
                         current_connect_count++;
+                    }
+                    else if(connects[cur_fd]->status == conn::CLOSE)
+                    {
+                        CONNECTS_REMOVE_FD;
                     }
                     else if(events[event_index].events & EPOLLRDHUP)
                     {
