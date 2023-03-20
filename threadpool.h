@@ -3,12 +3,14 @@
 
 #include <thread>               /* thread */
 #include <queue>                /* queue */
-#include <semaphore>            /* mutex semaphore */
 #include "ErrorLog/ErrorLog.h"  /* LOG LOG_MSG LOG_FMT */
 #include <unordered_map>        /* unordered_map */
 #if __cplusplus <= 201703L
 #include <condition_variable>   /* condition_variable */
+#else
+#include <semaphore>            /* mutex semaphore */
 #endif
+
 namespace hzd
 {
 
