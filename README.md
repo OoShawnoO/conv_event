@@ -65,3 +65,16 @@
     conv.enable_one_shot();  /* enable one_shot */
     conv.disable_one_shot(); /* disable one_shot */
    ```
+- Send && Recv
+   ```c++
+    /* overload send and recv,you can use my send or recv
+     * by this way*/
+    header_type type;
+    type = header_type::BYTE;
+    send("message",type); /* automatic send sizeof your msg */
+    send(string&,type); /* send by std::string */
+    send(char*,size); /* send char* but need you give size*/
+    
+    recv(string&,header_type&); /* recv string& and type&*/
+    recv(string&,size); /* recv such size msg*/
+   ```
