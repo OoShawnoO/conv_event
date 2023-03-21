@@ -1,6 +1,3 @@
 [submodule "ErrorLog"]
 	path = ErrorLog
 	url = https://github.com/OoShawnoO/ErrorLog.git
-[submodule "json"]
-	path = json
-	url = https://github.com/OoShawnoO/json.git
