@@ -4,7 +4,6 @@
 #include "conn.h"       /* conn */
 #include "threadpool.h" /* thread_pool */
 #include <csignal>      /* signal */
-#include <deque>
 
 namespace hzd {
     template<class T>
@@ -43,12 +42,29 @@ namespace hzd {
             }
         }
         /**
-          * @brief listen socket
-          * @note None
-          * @param None
-          * @retval None
-          */
-        void _listen_()
+        * @brief bind socket
+        * @note None
+        * @param None
+        * @retval None
+        */
+        inline void _bind_()
+        {
+            if(bind(socket_fd,(sockaddr*)&my_addr,sizeof(my_addr)) < 0)
+            {
+                LOG_FMT(Socket_Bind,"bind socket error","IP=%s,PORT=%u",ip.c_str(),port);
+                close();
+                perror("bind");
+                exit(-1);
+            }
+        }
+        
+        /**
+         * @brief listen socket
+         * @note None
+         * @param None
+         * @retval None
+         */
+        inline void _listen_()
         {
             if(listen(socket_fd,listen_queue_count) < 0)
             {
@@ -63,7 +79,7 @@ namespace hzd {
           * @param None
           * @retval None
           */
-        void _register_listen_fd_()
+        inline void _register_listen_fd_()
         {
             if(epoll_add(epoll_fd,socket_fd,ET,false) < 0)
             {
@@ -105,13 +121,7 @@ namespace hzd {
             my_addr.sin_addr.s_addr = inet_addr(ip.c_str());
             my_addr.sin_port = htons(port);
             my_addr.sin_family = AF_INET;
-            if(bind(temp_fd,(sockaddr*)&my_addr,sizeof(my_addr)) < 0)
-            {
-                LOG_FMT(Socket_Bind,"bind socket error","IP=%s,PORT=%u",ip.c_str(),port);
-                close();
-                perror("bind");
-                exit(-1);
-            }
+
             socket_fd = temp_fd;
             signal(SIGPIPE,SIG_IGN);
         }
@@ -284,6 +294,7 @@ namespace hzd {
           */
         void wait(int time_out = -1)
         {
+            _bind_();
             _prepare_epoll_event_();
             _listen_();
             _register_listen_fd_();

@@ -4,7 +4,6 @@
 #include <unistd.h>             /* close */
 #include <arpa/inet.h>          /* socket */
 #include <sys/epoll.h>          /* epoll */
-#define NO_ERROR_LOG
 #include "ErrorLog/ErrorLog.h"  /* hzd:: LOG LOG_MSG LOG_FMT */
 #include <cstring>              /* memcpy bzero memset */
 #include "utils.h"              /* hzd::header */
