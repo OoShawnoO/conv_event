@@ -81,7 +81,6 @@ namespace hzd {
 
     class conn {
         /* private member variable */
-        bool working{false};
         bool ET{false};
         bool one_shot{false};
         char read_buffer[2048] = {0};
@@ -317,9 +316,6 @@ namespace hzd {
             return epoll_mod(epoll_fd,socket_fd,event,ET,one_shot);
         }
         /* thread safety */
-        bool is_working() const{ return working; }
-        void set_working() { working = true; }
-        void cancel_working() { working = false; }
         void notify_close() {
             status = CLOSE;
         }
@@ -331,7 +327,7 @@ namespace hzd {
             epoll_fd = _epoll_fd;
             ET = et;
             one_shot = _one_shot;
-            block_none(socket_fd);
+//            block_none(socket_fd);
             epoll_add(epoll_fd,socket_fd,ET,one_shot);
         }
         /**

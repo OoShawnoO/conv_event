@@ -58,10 +58,10 @@
     conv.enable_et(); /* enable ET */
     conv.disable_et(); /* disable ET */
    ```
-- ~~One shot~~ (Not Recommended)
+- One shot (Recommended)
    ```c++
-    /* because of using one_shot need manual register next
-     * event,and using system call epoll_ctl.*/
+    /* pay attention,because of using one_shot need manual register 
+     * next event,and using system call epoll_ctl or my next() method.*/
     conv.enable_one_shot();  /* enable one_shot */
     conv.disable_one_shot(); /* disable one_shot */
    ```

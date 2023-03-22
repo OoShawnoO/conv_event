@@ -60,7 +60,7 @@ namespace hzd
             while(read_cursor < read_total_bytes)
             {
                 bzero(read_buffer,sizeof(read_buffer));
-                if((read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),MSG_DONTWAIT))<=0)
+                if((read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),0))<=0)
                 {
                     perror("recv");
                     return false;
@@ -94,9 +94,6 @@ namespace hzd
             dest_addr.sin_addr.s_addr = inet_addr(IP.c_str());
             dest_addr.sin_port = htons(PORT);
             dest_addr.sin_family = AF_INET;
-            int option = fcntl(socket_fd,F_GETFL);
-            int new_option = option | O_NONBLOCK;
-            fcntl(socket_fd,F_SETFL,new_option);
         }
         /* virtual Destructor */
         virtual ~conv_client()
@@ -118,6 +115,9 @@ namespace hzd
             {
                 ERROR("connect");
             }
+//            int option = fcntl(socket_fd,F_GETFL);
+//            int new_option = option | O_NONBLOCK;
+//            fcntl(socket_fd,F_SETFL,new_option);
         }
         /**
           * @brief send data by using hzd::header

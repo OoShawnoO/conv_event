@@ -105,12 +105,7 @@ namespace hzd
                 {
                     continue;
                 }
-                if(!con->is_working())
-                {
-                    con->set_working();
-                    con->process();
-                    con->cancel_working();
-                }
+                con->process();
             }
         }
 
