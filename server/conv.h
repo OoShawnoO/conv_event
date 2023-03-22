@@ -1,7 +1,7 @@
 #ifndef CONV_EVENT_CONV_H
 #define CONV_EVENT_CONV_H
 
-#include "conn.h"       /* conn */
+#include "server/conn.h"       /* conn */
 #include "threadpool.h" /* thread_pool */
 #include <csignal>      /* signal */
 

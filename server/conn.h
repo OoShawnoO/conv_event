@@ -132,8 +132,6 @@ namespace hzd {
                 }
                 write_cursor += send_count;
             }
-            write_cursor = 0;
-            write_total_bytes = 0;
             return true;
         }
         /**
@@ -155,16 +153,26 @@ namespace hzd {
             while(read_cursor < read_total_bytes)
             {
                 bzero(read_buffer,sizeof(read_buffer));
-                if((read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),MSG_DONTWAIT))<=0)
+                if((read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),0))<=0)
                 {
-                    LOG(Conn_Recv,"data recv error");
-                    return false;
+                    if(read_count == -1)
+                    {
+                        if(errno == EAGAIN || errno == EWOULDBLOCK)
+                        {
+                            return true;
+                        }
+                        LOG(Conn_Recv,"data recv error");
+                        return false;
+                    }
+                    else
+                    {
+                        LOG(Conn_Recv,"client close");
+                        return false;
+                    }
                 }
                 data += read_buffer;
                 read_cursor += read_count;
             }
-            read_cursor = 0;
-            read_total_bytes = 0;
             return true;
         }
     protected:
@@ -289,6 +297,17 @@ namespace hzd {
             return recv_base(data);
         }
         /**
+        * @brief recv all data from system buffer
+        * @note None
+        * @param None
+        * @retval None
+        */
+        bool recv_all(std::string& data)
+        {
+            read_total_bytes = SIZE_MAX;
+            return recv_base(data);
+        }
+        /**
           * @brief register next event
           * @note None
           * @param event EPOLL_EVENTS
@@ -312,6 +331,7 @@ namespace hzd {
             epoll_fd = _epoll_fd;
             ET = et;
             one_shot = _one_shot;
+            block_none(socket_fd);
             epoll_add(epoll_fd,socket_fd,ET,one_shot);
         }
         /**
