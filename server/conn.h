@@ -11,7 +11,8 @@
 #include <fcntl.h>              /* fcntl */
 #include <deque>                /* deque */
 #include <vector>               /* vector */
-#include <algorithm>
+#include <algorithm>            /* find */
+#include <mutex>                /* mutex */
 namespace hzd {
 
 #define CONN_LOG_IP_PORT_FMT "client IP=%s client Port = %u",inet_ntoa(sock_addr.sin_addr),ntohs(sock_addr.sin_port)
@@ -320,6 +321,7 @@ namespace hzd {
         }
         /* thread safety */
         void notify_close() {
+            shutdown(socket_fd,SHUT_RDWR);
             next(EPOLLIN);
             status = CLOSE;
         }
