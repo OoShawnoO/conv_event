@@ -21,7 +21,7 @@ namespace hzd {
           * @param None
           * @retval None
           */
-        void _prepare_epoll_event_()
+        inline void _prepare_epoll_event_()
         {
             if(!events)
                 events = new epoll_event[max_events_count];
@@ -57,7 +57,6 @@ namespace hzd {
                 exit(-1);
             }
         }
-        
         /**
          * @brief listen socket
          * @note None
@@ -89,6 +88,7 @@ namespace hzd {
                 exit(-1);
             }
         }
+
     protected:
         /* protected member variable */
         bool ET{false};

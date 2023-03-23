@@ -43,6 +43,7 @@ namespace hzd {
         ev.events = EPOLLIN | EPOLLRDHUP;
         if(et) ev.events = ev.events | EPOLLET;
         if(one_shot) ev.events = ev.events | EPOLLONESHOT;
+        block_none(socket_fd);
         return epoll_ctl(epoll_fd,EPOLL_CTL_ADD,socket_fd,&ev);
     }
     /**
@@ -211,7 +212,7 @@ namespace hzd {
           * @param type data-type
           * @retval None
           */
-        bool send(const char* data,header_type type = header_type::BYTE)
+        bool send_with_header(const char* data)
         {
             write_total_bytes = strlen(data) + 1;
             if(write_total_bytes <= 1)
@@ -219,7 +220,7 @@ namespace hzd {
                 LOG(Conn_Send,"send data = null");
                 return false;
             }
-            header h{type,write_total_bytes};
+            header h{write_total_bytes};
             if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
             {
                 LOG(Conn_Send,"header send error");
@@ -234,7 +235,7 @@ namespace hzd {
           * @param type data-type
           * @retval None
           */
-        bool send(std::string& data,header_type type = header_type::BYTE)
+        bool send_with_header(std::string& data)
         {
             write_total_bytes = data.size()+1;
             if(write_total_bytes <= 1)
@@ -242,7 +243,7 @@ namespace hzd {
                 LOG(Conn_Send,"send data = null");
                 return false;
             }
-            header h{type,write_total_bytes};
+            header h{write_total_bytes};
             if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
             {
                 LOG(Conn_Send,"header send error");
@@ -274,7 +275,7 @@ namespace hzd {
           * @param type data-type
           * @retval None
           */
-        bool recv(std::string& data,header_type& type)
+        bool recv_with_header(std::string& data)
         {
             header h{};
             if(::recv(socket_fd,&h,HEADER_SIZE,0) <= 0)
@@ -283,7 +284,6 @@ namespace hzd {
                 return false;
             }
             read_total_bytes = h.size;
-            type = h.type;
             return recv_base(data);
         }
         /**
@@ -320,7 +320,7 @@ namespace hzd {
         }
         /* thread safety */
         void notify_close() {
-            next(EPOLLRDHUP);
+            next(EPOLLIN);
             status = CLOSE;
         }
         /* common virtual member methods */

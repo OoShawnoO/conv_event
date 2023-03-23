@@ -9,9 +9,16 @@ int main()
     conv_client c("127.0.0.1",9999);
     c.connect();
     string s = "i am client";
-    bool x = c.send(s);
+    bool x = c.send_with_header(s);
     cout << x << endl;
-    header_type type;
-    x = c.recv(s,type);
+    x = c.recv_with_header(s);
     cout << s << endl;
+    if(c.recv_with_header(s))
+    {
+        cout << s << endl;
+    }
+    else
+    {
+        cout << "false" << endl;
+    }
 }

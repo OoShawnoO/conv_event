@@ -7,9 +7,11 @@
 #include <arpa/inet.h>
 #include <cstring>
 #include <fcntl.h>
+#include <iostream>
 
 #define ERROR(method) do{ \
     perror(method);       \
+    close();              \
     exit(-1);             \
 }while(0)
 
@@ -98,9 +100,7 @@ namespace hzd
         /* virtual Destructor */
         virtual ~conv_client()
         {
-            if(socket_fd != -1){
-                close(socket_fd);
-            }
+            close();
         }
         /* common public methods */
         /**
@@ -126,14 +126,14 @@ namespace hzd
           * @param type data-type
           * @retval None
           */
-        bool send(const char* data,header_type type = header_type::BYTE)
+        bool send_with_header(const char* data)
         {
             write_total_bytes = strlen(data) + 1;
             if(write_total_bytes <= 1)
             {
                 return false;
             }
-            header h{type,write_total_bytes};
+            header h{write_total_bytes};
             if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
             {
                 perror("send");
@@ -148,14 +148,14 @@ namespace hzd
           * @param type data-type
           * @retval None
           */
-        bool send(std::string& data,header_type type = header_type::BYTE)
+        bool send_with_header(std::string& data)
         {
             write_total_bytes = data.size()+1;
             if(write_total_bytes <= 1)
             {
                 return false;
             }
-            header h{type,write_total_bytes};
+            header h{write_total_bytes};
             if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
             {
                 perror("send");
@@ -186,7 +186,7 @@ namespace hzd
           * @param type data-type
           * @retval None
           */
-        bool recv(std::string& data,header_type& type)
+        bool recv_with_header(std::string& data)
         {
             header h{};
             if(::recv(socket_fd,&h,HEADER_SIZE,0) <= 0)
@@ -195,7 +195,6 @@ namespace hzd
                 return false;
             }
             read_total_bytes = h.size;
-            type = h.type;
             return recv_base(data);
         }
         /**
@@ -221,7 +220,18 @@ namespace hzd
             read_total_bytes = SIZE_MAX;
             return recv_base(data);
         }
-
+        /**
+        * @brief close socket
+        * @note None
+        * @param None
+        * @retval None
+        */
+        void close() {
+            if (socket_fd != -1)
+            {
+                ::close(socket_fd);
+            }
+        }
     };
 }
 

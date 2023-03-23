@@ -69,12 +69,10 @@
    ```c++
     /* overload send and recv,you can use my send or recv
      * by this way*/
-    header_type type;
-    type = header_type::BYTE;
-    send("message",type); /* automatic send sizeof your msg */
-    send(string&,type); /* send by std::string */
-    send(char*,size); /* send char* but need you give size*/
+    send_with_header("message"); /* automatic send sizeof your msg */
+    send_with_header(string&); /* send by std::string */
+    send(string&,size); /* send char* but need you give size*/
     
-    recv(string&,header_type&); /* recv string& and type&*/
+    recv_with_header(string&); /* recv string& and type&*/
     recv(string&,size); /* recv such size msg*/
    ```
