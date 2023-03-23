@@ -103,8 +103,9 @@ namespace hzd {
         int listen_queue_count{32};
         int max_connect_count{10000};
         int current_connect_count{0};
-        std::unordered_map<int,std::shared_ptr<T>> connects;
+        std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool = nullptr;
+        connpool<T>* conn_pool = nullptr;
     public:
         /* Constructor */
         conv(std::string _ip,short _port,bool _one_shot = false,bool ET = false)
@@ -131,15 +132,24 @@ namespace hzd {
             close();
         }
         /* define */
-        #define CONNECTS_REMOVE_FD do           \
-        {                                       \
-            connects[cur_fd]->close();          \
-            current_connect_count--;            \
-            auto iter = connects.find(cur_fd);  \
-            if(iter != connects.end())          \
-            {                                   \
-                connects.erase(iter);           \
-            }                                   \
+        #define CONNECTS_REMOVE_FD do                   \
+        {                                               \
+            connects[cur_fd]->close();                  \
+            if(conn_pool)                               \
+            {                                           \
+                conn_pool->release(connects[cur_fd]);   \
+            }                                           \
+            else                                        \
+            {                                           \
+                delete connects[cur_fd];                \
+                connects[cur_fd] = nullptr;             \
+            }                                           \
+            current_connect_count--;                    \
+            auto iter = connects.find(cur_fd);          \
+            if(iter != connects.end())                  \
+            {                                           \
+                connects.erase(iter);                   \
+            }                                           \
         }while(0)
         /* common member methods */
         /**
@@ -166,7 +176,8 @@ namespace hzd {
             }
             delete thread_pool;
             thread_pool = nullptr;
-
+            delete conn_pool;
+            conn_pool = nullptr;
         }
         /**
           * @brief enable address reuse
@@ -236,6 +247,30 @@ namespace hzd {
         {
             delete thread_pool;
             thread_pool = nullptr;
+        }
+        /**
+        * @brief enable object pool
+        * @note None
+        * @param None
+        * @retval None
+        */
+        void enable_object_pool(size_t size = 200)
+        {
+            if(!conn_pool)
+            {
+                conn_pool = new connpool<T>(size,max_connect_count);
+            }
+        }
+        /**
+        * @brief disable object pool
+        * @note None
+        * @param None
+        * @retval None
+        */
+        void disable_object_pool()
+        {
+            delete conn_pool;
+            conn_pool = nullptr;
         }
         /**
           * @brief enable et model
@@ -326,29 +361,53 @@ namespace hzd {
                             ::close(client_fd);
                             continue;
                         }
-                        connects[client_fd] = std::shared_ptr<T>(new T);
+                        if(conn_pool)
+                        {
+                            T* t = conn_pool->acquire();
+                            if(!t) { ::close(client_fd);continue; }
+                            connects[client_fd] = t;
+                        }
+                        else
+                        {
+                            connects[client_fd] = new T;
+                        }
                         connects[client_fd]->init(client_fd, &client_addr,epoll_fd,ET,one_shot);
                         current_connect_count++;
                     }
                     else if(connects[cur_fd]->status == conn::CLOSE)
                     {
+                        LOG_MSG("connect close");
                         CONNECTS_REMOVE_FD;
                     }
                     else if(events[event_index].events & EPOLLRDHUP)
                     {
                         connects[cur_fd]->status = conn::RDHUP;
-                        if(!connects[cur_fd]->process())
+                        if(thread_pool)
                         {
+                            thread_pool->add(connects[cur_fd]);
+                        }
+                        else
+                        {
+                            if(!connects[cur_fd]->process())
+                            {
 
+                            }
                         }
                         CONNECTS_REMOVE_FD;
                     }
                     else if(events[event_index].events & EPOLLERR)
                     {
                         connects[cur_fd]->status = conn::ERROR;
-                        if(!connects[cur_fd]->process())
+                        if(thread_pool)
                         {
+                            thread_pool->add(connects[cur_fd]);
+                        }
+                        else
+                        {
+                            if(!connects[cur_fd]->process())
+                            {
 
+                            }
                         }
                         CONNECTS_REMOVE_FD;
                     }

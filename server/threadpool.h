@@ -45,7 +45,7 @@ namespace hzd
         int thread_count;
         int max_process_count;
         std::mutex mutex;
-        std::queue<std::shared_ptr<T>> process_pool;
+        std::queue<T*> process_pool;
         std::thread* threads;
         #if __cplusplus > 201703L
         std::counting_semaphore<0> sem{0};
@@ -109,7 +109,7 @@ namespace hzd
             }
         }
 
-        bool add(std::shared_ptr<T> t)
+        bool add(T* t)
         {
             mutex.lock();
             if(process_pool.size() > max_process_count)

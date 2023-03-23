@@ -9,6 +9,9 @@
 #include "utils.h"              /* hzd::header */
 #include <memory>               /* unique_ptr */
 #include <fcntl.h>              /* fcntl */
+#include <deque>                /* deque */
+#include <vector>               /* vector */
+#include <algorithm>
 namespace hzd {
 
 #define CONN_LOG_IP_PORT_FMT "client IP=%s client Port = %u",inet_ntoa(sock_addr.sin_addr),ntohs(sock_addr.sin_port)
@@ -317,6 +320,7 @@ namespace hzd {
         }
         /* thread safety */
         void notify_close() {
+            next(EPOLLRDHUP);
             status = CLOSE;
         }
         /* common virtual member methods */
@@ -419,6 +423,68 @@ namespace hzd {
                 ::close(socket_fd);
                 socket_fd = -1;
             }
+        }
+    };
+
+    template<class T>
+    class connpool
+    {
+        #if __cplusplus > 201703L
+                static_assert(std::is_base_of_v<conn,T>,"must derived from class hzd::conn.");
+        #else
+                static_assert(std::is_base_of<conn,T>::value,"must derived from class hzd::conn.");
+        #endif
+
+        size_t size{0};
+        size_t max_count;
+        std::vector<T*> object_vector;
+        std::deque<T*> object_queue;
+        std::mutex mtx;
+    public:
+        connpool(size_t _size,size_t _max_count=10000)
+        :size(_size),max_count(_max_count)
+        {
+            object_vector.reserve(size);
+            T* t = nullptr;
+            for(int i=0;i<size;i++)
+            {
+                t = new T;
+                object_vector[i] = t;
+                object_queue.push_back(t);
+            }
+        }
+        ~connpool()
+        {
+            for(int i=0;i<object_vector.size();i++)
+            {
+                delete object_vector[i];
+                object_vector[i] = nullptr;
+            }
+        }
+        connpool(const connpool<T>&) = delete;
+        const connpool<T>& operator=(const connpool<T>&) = delete;
+
+        T* acquire()
+        {
+            if(object_vector.size() >= max_count) return nullptr;
+            std::lock_guard<std::mutex> guard(mtx);
+            if(object_queue.empty())
+            {
+                    T* t = new T;
+                    object_vector.push_back(t);
+                    object_queue.push_back(t);
+            }
+            T* t =object_queue.front();
+            object_queue.pop_front();
+            return t;
+        }
+
+        bool release(T* t)
+        {
+            if(find(object_vector.begin(),object_vector.end(),t) == object_vector.end()) return false;
+            std::lock_guard<std::mutex> guard(mtx);
+            object_queue.push_back(t);
+            return true;
         }
     };
 }
