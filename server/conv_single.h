@@ -7,7 +7,7 @@
 
 namespace hzd {
     template<class T>
-    class conv {
+    class conv_single {
         /* static assert*/
         #if __cplusplus > 201703L
         static_assert(std::is_base_of_v<conn,T>,"must derived from class hzd::conn.");
@@ -104,11 +104,11 @@ namespace hzd {
         int max_connect_count{10000};
         int current_connect_count{0};
         std::unordered_map<int,T*> connects;
-        threadpool<T>* thread_pool = nullptr;
-        connpool<T>* conn_pool = nullptr;
+        threadpool<T>* thread_pool{nullptr};
+        connpool<T>* conn_pool{nullptr};
     public:
         /* Constructor */
-        conv(std::string _ip,short _port,bool _one_shot = false,bool ET = false)
+        conv_single(std::string _ip,short _port,bool _one_shot = false,bool ET = false)
         :ip(std::move(_ip)),port(_port),one_shot(_one_shot),ET(ET)
         {
             int temp_fd = socket(AF_INET,SOCK_STREAM,0);
@@ -127,7 +127,7 @@ namespace hzd {
             signal(SIGPIPE,SIG_IGN);
         }
         /* Destructor */
-        ~conv()
+        ~conv_single()
         {
             close();
         }
@@ -227,7 +227,7 @@ namespace hzd {
           * @brief enable using multi-thread
           * @note None
           * @param thread_count working thread count
-          * @param max_process_count max process cout
+          * @param max_process_count max process count
           * @retval None
           */
         void enable_multi_thread(int thread_count = 8,int max_process_count = 10000)
@@ -392,8 +392,8 @@ namespace hzd {
                             {
 
                             }
+                            CONNECTS_REMOVE_FD;
                         }
-                        CONNECTS_REMOVE_FD;
                     }
                     else if(events[event_index].events & EPOLLERR)
                     {
@@ -408,8 +408,8 @@ namespace hzd {
                             {
 
                             }
+                            CONNECTS_REMOVE_FD;
                         }
-                        CONNECTS_REMOVE_FD;
                     }
                     else if(events[event_index].events & EPOLLOUT)
                     {

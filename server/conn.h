@@ -328,12 +328,12 @@ namespace hzd {
         /* common virtual member methods */
         virtual void init(int _socket_fd,sockaddr_in* _addr,int _epoll_fd,bool et,bool _one_shot)
         {
+            status = OK;
             socket_fd = _socket_fd;
             sock_addr = *_addr;
             epoll_fd = _epoll_fd;
             ET = et;
             one_shot = _one_shot;
-//            block_none(socket_fd);
             epoll_add(epoll_fd,socket_fd,ET,one_shot);
         }
         /**
@@ -376,6 +376,7 @@ namespace hzd {
         virtual bool process_rdhup()
         {
             LOG_FMT(None,"client close",CONN_LOG_IP_PORT_FMT);
+            notify_close();
             return true;
         }
         /**
@@ -387,6 +388,7 @@ namespace hzd {
         virtual bool process_error()
         {
             LOG_FMT(Epoll_Error,"client error",CONN_LOG_IP_PORT_FMT);
+            notify_close();
             return true;
         }
         virtual bool process()
@@ -440,19 +442,14 @@ namespace hzd {
         size_t size{0};
         size_t max_count;
         std::vector<T*> object_vector;
-        std::deque<T*> object_queue;
         std::mutex mtx;
     public:
-        connpool(size_t _size,size_t _max_count=10000)
+        explicit connpool(size_t _size,size_t _max_count=10000)
         :size(_size),max_count(_max_count)
         {
-            object_vector.reserve(size);
-            T* t = nullptr;
-            for(int i=0;i<size;i++)
+            for(size_t i=0;i<size;i++)
             {
-                t = new T;
-                object_vector[i] = t;
-                object_queue.push_back(t);
+                object_vector.push_back(new T);
             }
         }
         ~connpool()
@@ -468,24 +465,22 @@ namespace hzd {
 
         T* acquire()
         {
-            if(object_vector.size() >= max_count) return nullptr;
             std::lock_guard<std::mutex> guard(mtx);
-            if(object_queue.empty())
+            if(object_vector.empty())
             {
-                    T* t = new T;
-                    object_vector.push_back(t);
-                    object_queue.push_back(t);
+                if(object_vector.size() >= max_count) return nullptr;
+                T* t = new T;
+                object_vector.push_back(t);
             }
-            T* t =object_queue.front();
-            object_queue.pop_front();
+            T* t =object_vector.back();
+            object_vector.pop_back();
             return t;
         }
 
         bool release(T* t)
         {
-            if(find(object_vector.begin(),object_vector.end(),t) == object_vector.end()) return false;
             std::lock_guard<std::mutex> guard(mtx);
-            object_queue.push_back(t);
+            object_vector.push_back(t);
             return true;
         }
     };
