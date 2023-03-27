@@ -1,9 +1,10 @@
 #ifndef USE_CONV_CONV_MULTI_H
 #define USE_CONV_CONV_MULTI_H
 
-#include <utility>
 #include "server/include/reactor.h"
 #include "server/include/acceptor.h"
+#include <csignal>
+
 namespace hzd
 {
     template <class T>
@@ -14,7 +15,7 @@ namespace hzd
         std::string ip;
         short port;
         acceptor<T> _acceptor;
-        safe_queue<T> conn_queue;
+        safe_queue<T*> conn_queue;
         bool run{true};
         connpool<T>* conn_pool{nullptr};
         std::vector<reactor<T>> reactors;
@@ -25,6 +26,8 @@ namespace hzd
         {
             run = true;
             reactors.resize(reactor_count);
+            signal(SIGPIPE,SIG_IGN);
+            reactor<T>::set_run_true();
         };
         ~conv_multi()
         {
@@ -33,6 +36,7 @@ namespace hzd
         void close()
         {
             run = false;
+            reactor<T>::set_run_false();
             delete conn_pool;
             conn_pool = nullptr;
         }
@@ -179,14 +183,18 @@ namespace hzd
 
         void wait(int time_out=-1)
         {
-            _acceptor.init(ip,port,conn_queue,run,conn_pool);
+            _acceptor.init(ip,port,&conn_queue,conn_pool);
             for(auto& r : reactors)
             {
-                r.init(run,ET,one_shot,conn_pool,conn_queue);
-                std::thread t(r.work,time_out);
+                r.init(run,ET,one_shot,conn_pool,&conn_queue);
+                using func = void(*)(void*);
+                std::thread t(static_cast<func>(&reactor<T>::work),(void*)&r);
                 t.detach();
             }
-            _acceptor.work();
+            while(run)
+            {
+                _acceptor.work();
+            }
         }
     };
 }

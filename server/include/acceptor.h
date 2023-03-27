@@ -16,6 +16,13 @@ namespace hzd
                 ::close(socket_fd);
                 socket_fd = -1;
             }
+            if(epoll_fd != -1)
+            {
+                ::close(epoll_fd);
+                epoll_fd = -1;
+            }
+            delete event;
+            event = nullptr;
         }
 
         /**
@@ -79,12 +86,31 @@ namespace hzd
                 exit(-1);
             }
         }
-
+        /**
+          * @brief register listen fd to epoll event
+          * @note None
+          * @param None
+          * @retval None
+          */
+        inline void _register_listen_fd_()
+        {
+            if(epoll_add(epoll_fd,socket_fd,false,false) < 0)
+            {
+                LOG(Epoll_Add,"epoll add error");
+                close();
+                perror("epoll_add");
+                exit(-1);
+            }
+        }
         void _accept_()
         {
             sockaddr_in client_addr{};
             socklen_t len = sizeof(client_addr);
             int fd = accept(socket_fd,(sockaddr*)&client_addr,&len);
+            if(fd < 0)
+            {
+                return;
+            }
             T* t = nullptr;
             if(conn_pool)
             {
@@ -95,8 +121,8 @@ namespace hzd
             {
                 t = new T;
             }
-            t->init(socket_fd,&client_addr);
-            conn_queue.push(t);
+            t->init(fd,&client_addr);
+            conn_queue->push(t);
         }
     protected:
         std::string ip{};
@@ -104,10 +130,13 @@ namespace hzd
         int socket_fd{-1};
         sockaddr_in my_addr{};
         int listen_queue_count{32};
-        bool& run;
-        safe_queue<T>& conn_queue;
+        safe_queue<T*>* conn_queue;
         connpool<T>* conn_pool{nullptr};
+        int epoll_fd{-1};
+        epoll_event* event{nullptr};
+
     public:
+        acceptor() = default;
         ~acceptor()
         {
             close();
@@ -164,20 +193,32 @@ namespace hzd
           */
         void set_listen_queue_count(int size){if(size >= 0) listen_queue_count = size;}
 
-        void init(std::string _ip,short _port,safe_queue<T*>& _conn_queue,bool& _run,connpool<T>* cp = nullptr)
+        void init(std::string _ip,short _port,safe_queue<T*>* _conn_queue,connpool<T>* cp = nullptr)
         {
             ip = std::move(_ip);
             port = _port;
             conn_queue = _conn_queue;
-            run = _run;
             conn_pool = cp;
             _create_socket_();
             _prepare_socket_address_();
             _bind_();
+            if(epoll_fd == -1)
+                epoll_fd = epoll_create(1);
+            if(epoll_fd < 0)
+            {
+                LOG(Epoll_Create,"epoll create error");
+                close();
+                perror("epoll_create");
+                exit(-1);
+            }
+            event = new epoll_event[128];
+            _register_listen_fd_();
+            _listen_();
         }
         void work()
         {
-            while(run)
+            int ret = -1;
+            if((ret = epoll_wait(epoll_fd,event,128,-1) > 0))
             {
                 _accept_();
             }
