@@ -201,6 +201,11 @@ namespace hzd
             conn_pool = cp;
             _create_socket_();
             _prepare_socket_address_();
+
+
+        }
+        void work()
+        {
             _bind_();
             if(epoll_fd == -1)
                 epoll_fd = epoll_create(1);
@@ -214,14 +219,15 @@ namespace hzd
             event = new epoll_event[128];
             _register_listen_fd_();
             _listen_();
-        }
-        void work()
-        {
-            int ret = -1;
-            if((ret = epoll_wait(epoll_fd,event,128,-1) > 0))
+            while(true)
             {
-                _accept_();
+                int ret = -1;
+                if((ret = epoll_wait(epoll_fd,event,128,-1) > 0))
+                {
+                    _accept_();
+                }
             }
+            close();
         }
     };
 }

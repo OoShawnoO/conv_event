@@ -28,6 +28,7 @@ namespace hzd
             reactors.resize(reactor_count);
             signal(SIGPIPE,SIG_IGN);
             reactor<T>::set_run_true();
+            _acceptor.init(ip,port,&conn_queue,conn_pool);
         };
         ~conv_multi()
         {
@@ -183,7 +184,6 @@ namespace hzd
 
         void wait(int time_out=-1)
         {
-            _acceptor.init(ip,port,&conn_queue,conn_pool);
             for(auto& r : reactors)
             {
                 r.init(run,ET,one_shot,conn_pool,&conn_queue);
@@ -191,10 +191,7 @@ namespace hzd
                 std::thread t(static_cast<func>(&reactor<T>::work),(void*)&r);
                 t.detach();
             }
-            while(run)
-            {
-                _acceptor.work();
-            }
+            _acceptor.work();
         }
     };
 }
