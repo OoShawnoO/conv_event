@@ -1,8 +1,8 @@
 #ifndef CONV_EVENT_CONV_H
 #define CONV_EVENT_CONV_H
 
-#include "server/conn.h"       /* conn */
-#include "threadpool.h" /* thread_pool */
+#include "server/include/conn.h"       /* conn */
+#include "server/include/threadpool.h" /* thread_pool */
 #include <csignal>      /* signal */
 
 namespace hzd {
@@ -15,6 +15,36 @@ namespace hzd {
         static_assert(std::is_base_of<conn,T>::value,"must derived from class hzd::conn.");
         #endif
 
+        /**
+        * @brief create socket
+        * @note None
+        * @param None
+        * @retval None
+        */
+        inline void _create_socket_()
+        {
+            int temp_fd = socket(AF_INET,SOCK_STREAM,0);
+            if(temp_fd < 0)
+            {
+                LOG(Socket_Create,"socket create error");
+                close();
+                perror("socket");
+                exit(-1);
+            }
+            socket_fd = temp_fd;
+        }
+        /**
+        * @brief prepare socket address
+        * @note None
+        * @param None
+        * @retval None
+        */
+        inline void _prepare_socket_address_()
+        {
+            my_addr.sin_addr.s_addr = inet_addr(ip.c_str());
+            my_addr.sin_port = htons(port);
+            my_addr.sin_family = AF_INET;
+        }
         /**
           * @brief prepare epoll event
           * @note None
@@ -97,10 +127,11 @@ namespace hzd {
         short port;
         int socket_fd{-1};
         sockaddr_in my_addr{};
+        int listen_queue_count{32};
+
         int epoll_fd{-1};
         epoll_event* events{nullptr};
         int max_events_count{1024};
-        int listen_queue_count{32};
         int max_connect_count{10000};
         int current_connect_count{0};
         std::unordered_map<int,T*> connects;
@@ -111,19 +142,9 @@ namespace hzd {
         conv_single(std::string _ip,short _port,bool _one_shot = false,bool ET = false)
         :ip(std::move(_ip)),port(_port),one_shot(_one_shot),ET(ET)
         {
-            int temp_fd = socket(AF_INET,SOCK_STREAM,0);
-            if(temp_fd < 0)
-            {
-                LOG(Socket_Create,"socket create error");
-                close();
-                perror("socket");
-                exit(-1);
-            }
-            my_addr.sin_addr.s_addr = inet_addr(ip.c_str());
-            my_addr.sin_port = htons(port);
-            my_addr.sin_family = AF_INET;
+            _create_socket_();
+            _prepare_socket_address_();
 
-            socket_fd = temp_fd;
             signal(SIGPIPE,SIG_IGN);
         }
         /* Destructor */
@@ -196,7 +217,7 @@ namespace hzd {
           * @param None
           * @retval None
           */
-        void disable_add_reuse()
+        void disable_addr_reuse()
         {
             int opt = 0;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEADDR,(const void*)&opt,sizeof(opt));
@@ -339,16 +360,8 @@ namespace hzd {
             {
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) < 0)
                 {
-                    if(errno == EINTR)
-                    {
-                        LOG_MSG("user interrupt.");
-                        break;
-                    }
-                    else
-                    {
                         LOG(Epoll_Wait,"epoll wait error");
                         break;
-                    }
                 }
                 for(int event_index = 0;event_index < ret; event_index++)
                 {
