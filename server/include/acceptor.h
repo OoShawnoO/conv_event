@@ -102,6 +102,34 @@ namespace hzd
                 exit(-1);
             }
         }
+
+        /**
+          * @brief prepare epoll event
+          * @note None
+          * @param None
+          * @retval None
+          */
+        inline void _prepare_epoll_event_()
+        {
+            if(!event)
+                event = new epoll_event[1024];
+            if(!event)
+            {
+                LOG(Bad_Malloc,"epoll_event bad new");
+                close();
+                exit(-1);
+            }
+            if(epoll_fd == -1)
+                epoll_fd = epoll_create(1024);
+            if(epoll_fd < 0)
+            {
+                LOG(Epoll_Create,"epoll create error");
+                close();
+                perror("epoll_create");
+                exit(-1);
+            }
+        }
+
         void _accept_()
         {
             sockaddr_in client_addr{};
@@ -109,6 +137,7 @@ namespace hzd
             int fd = accept(socket_fd,(sockaddr*)&client_addr,&len);
             if(fd < 0)
             {
+                LOG(Socket_Accept,"socket accept error");
                 return;
             }
             T* t = nullptr;
@@ -208,24 +237,18 @@ namespace hzd
         void work()
         {
             _bind_();
-            if(epoll_fd == -1)
-                epoll_fd = epoll_create(1);
-            if(epoll_fd < 0)
-            {
-                LOG(Epoll_Create,"epoll create error");
-                close();
-                perror("epoll_create");
-                exit(-1);
-            }
-            event = new epoll_event[1024];
+            _prepare_epoll_event_();
             _register_listen_fd_();
             _listen_();
+            int ret;
             while(true)
             {
-                int ret = -1;
-                if((ret = epoll_wait(epoll_fd,event,1024,-1) > 0))
+                if((ret = epoll_wait(epoll_fd,event,1024,0) > 0))
                 {
-                    _accept_();
+                    for(int i=0;i<ret;i++)
+                    {
+                        _accept_();
+                    }
                 }
             }
             close();

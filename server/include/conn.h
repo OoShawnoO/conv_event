@@ -444,8 +444,9 @@ namespace hzd {
             if(socket_fd != -1)
             {
                 epoll_del(epoll_fd,socket_fd);
-                ::close(socket_fd);
+                epoll_fd = -1;
                 socket_fd = -1;
+                status = OK;
             }
         }
     };

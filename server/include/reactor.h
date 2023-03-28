@@ -86,17 +86,19 @@ namespace hzd
 
 #define CONNECTS_REMOVE_FD do                           \
         {                                               \
-            connects[cur_fd]->close();                  \
+            T* tmp = connects[cur_fd];                  \
+            connects.erase(cur_fd);                     \
+            tmp->close();                               \
             if(conn_pool)                               \
             {                                           \
-                conn_pool->release(connects[cur_fd]);   \
+                conn_pool->release(tmp);                \
+                tmp = nullptr;                          \
             }                                           \
             else                                        \
             {                                           \
-                delete connects[cur_fd];                \
-                connects[cur_fd] = nullptr;             \
+                delete tmp;                             \
+                tmp = nullptr;                          \
             }                                           \
-            connects.erase(cur_fd);                     \
         }while(0)
 
         /**
@@ -120,7 +122,7 @@ namespace hzd
             conn_queue = _conn_queue;
         }
 
-        void work(int time_out=100)
+        void work(int time_out=0)
         {
             int ret,cur_fd;
             T* t = nullptr;
@@ -129,14 +131,21 @@ namespace hzd
                 if((t = conn_queue->pop()) != nullptr)
                 {
                     t->init(epoll_fd,ET,one_shot);
+                    if(connects[t->fd()] != nullptr)
+                    {
+                        LOG(Pointer_To_Null,"already exist");
+                    }
                     connects[t->fd()] = t;
                 }
-                if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) < 0)
+                if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) == 0)
+                {
+                    continue;
+                }
+                else if(ret < 0)
                 {
                     LOG(Epoll_Wait,"epoll wait error");
                     break;
                 }
-                else if(ret == 0) continue;
                 else
                 {
                     for(int event_index = 0;event_index < ret; event_index++)
