@@ -101,7 +101,7 @@ namespace hzd
                 auto con = process_pool.front();
                 process_pool.pop();
                 mutex.unlock();
-                if(!con)
+                if(!con || con->fd() == -1)
                 {
                     continue;
                 }

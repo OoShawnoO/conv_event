@@ -89,7 +89,7 @@ namespace hzd {
     class conn {
         /* private member variable */
         bool ET{false};
-        bool one_shot{false};
+        bool one_shot{true};
         char read_buffer[2048] = {0};
         char write_buffer[2048] = {0};
         size_t read_cursor{0};
@@ -131,7 +131,7 @@ namespace hzd {
             {
                 bzero(write_buffer,sizeof(write_buffer));
                 memcpy(write_buffer,data+write_cursor,sizeof(write_buffer));
-                if((send_count = ::send(socket_fd,write_buffer,sizeof(write_buffer),0))<= 0)
+                if((send_count = ::send(socket_fd,write_buffer,sizeof(write_buffer),MSG_NOSIGNAL))<= 0)
                 {
                     LOG(Conn_Send,"data send error");
                     return false;
@@ -172,6 +172,10 @@ namespace hzd {
                     }
                     else
                     {
+                        if(errno == EAGAIN || errno == EWOULDBLOCK)
+                        {
+                            return true;
+                        }
                         LOG(Conn_Recv,"client close");
                         return false;
                     }

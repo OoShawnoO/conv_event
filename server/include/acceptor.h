@@ -120,6 +120,7 @@ namespace hzd
             else
             {
                 t = new T;
+                if(t == nullptr){return;}
             }
             t->init(fd,&client_addr);
             conn_queue->push(t);
@@ -216,13 +217,13 @@ namespace hzd
                 perror("epoll_create");
                 exit(-1);
             }
-            event = new epoll_event[128];
+            event = new epoll_event[1024];
             _register_listen_fd_();
             _listen_();
             while(true)
             {
                 int ret = -1;
-                if((ret = epoll_wait(epoll_fd,event,128,-1) > 0))
+                if((ret = epoll_wait(epoll_fd,event,1024,-1) > 0))
                 {
                     _accept_();
                 }

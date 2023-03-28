@@ -96,11 +96,7 @@ namespace hzd
                 delete connects[cur_fd];                \
                 connects[cur_fd] = nullptr;             \
             }                                           \
-            auto iter = connects.find(cur_fd);          \
-            if(iter != connects.end())                  \
-            {                                           \
-                connects.erase(iter);                   \
-            }                                           \
+            connects.erase(cur_fd);                     \
         }while(0)
 
         /**

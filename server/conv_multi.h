@@ -3,7 +3,6 @@
 
 #include "server/include/reactor.h"
 #include "server/include/acceptor.h"
-#include <csignal>
 
 namespace hzd
 {
@@ -26,7 +25,6 @@ namespace hzd
         {
             run = true;
             reactors.resize(reactor_count);
-            signal(SIGPIPE,SIG_IGN);
             reactor<T>::set_run_true();
             _acceptor.init(ip,port,&conn_queue,conn_pool);
         };
@@ -186,7 +184,7 @@ namespace hzd
         {
             for(auto& r : reactors)
             {
-                r.init(run,ET,one_shot,conn_pool,&conn_queue);
+                r.init(ET,one_shot,_thread_pool,conn_pool,&conn_queue);
                 using func = void(*)(void*);
                 std::thread t(static_cast<func>(&reactor<T>::work),(void*)&r);
                 t.detach();
