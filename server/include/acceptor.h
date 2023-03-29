@@ -161,11 +161,11 @@ namespace hzd
         sockaddr_in my_addr{};
         int listen_queue_count{32};
         safe_queue<T*>* conn_queue;
-        connpool<T>* conn_pool{nullptr};
         int epoll_fd{-1};
         epoll_event* event{nullptr};
 
     public:
+        connpool<T>* conn_pool{nullptr};
         acceptor() = default;
         ~acceptor()
         {

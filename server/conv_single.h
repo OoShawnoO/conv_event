@@ -156,6 +156,7 @@ namespace hzd {
         #define CONNECTS_REMOVE_FD do                   \
         {                                               \
             connects[cur_fd]->close();                  \
+            current_connect_count--;                    \
             if(conn_pool)                               \
             {                                           \
                 conn_pool->release(connects[cur_fd]);   \
@@ -165,11 +166,24 @@ namespace hzd {
                 delete connects[cur_fd];                \
                 connects[cur_fd] = nullptr;             \
             }                                           \
+            connects.erase(cur_fd);                     \
+        }while(0)
+
+        #define CONNECTS_REMOVE_FD_OUT do               \
+        {                                               \
             current_connect_count--;                    \
-            auto iter = connects.find(cur_fd);          \
-            if(iter != connects.end())                  \
+            T* tmp = it->second;                        \
+            tmp->close();                               \
+            it = connects.erase(it);                    \
+            if(conn_pool)                               \
             {                                           \
-                connects.erase(iter);                   \
+                conn_pool->release(tmp);                \
+                tmp = nullptr;                          \
+            }                                           \
+            else                                        \
+            {                                           \
+                delete tmp;                             \
+                tmp = nullptr;                          \
             }                                           \
         }while(0)
         /* common member methods */
@@ -358,6 +372,17 @@ namespace hzd {
             int cur_fd;
             while(true)
             {
+                for(auto it = connects.begin();it != connects.end();)
+                {
+                    if(it->second->status == conn::CLOSE)
+                    {
+                        CONNECTS_REMOVE_FD_OUT;
+                    }
+                    else
+                    {
+                        it++;
+                    }
+                }
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) < 0)
                 {
                         LOG(Epoll_Wait,"epoll wait error");
@@ -371,6 +396,7 @@ namespace hzd {
                         socklen_t len = sizeof(client_addr);
                         int client_fd = accept(socket_fd, (sockaddr *) &client_addr, &len);
                         if (current_connect_count >= max_connect_count) {
+                            LOG(Out_Of_Bound,"connects maxed");
                             ::close(client_fd);
                             continue;
                         }
@@ -378,19 +404,27 @@ namespace hzd {
                         {
                             T* t = conn_pool->acquire();
                             if(!t) { ::close(client_fd);continue; }
+                            if(connects[client_fd] != nullptr)
+                            {
+                                LOG(Pointer_To_Null,"already exist");
+                                conn_pool->release(t);
+                                ::close(client_fd);
+                                continue;
+                            }
                             connects[client_fd] = t;
                         }
                         else
                         {
+                            if(connects[client_fd] != nullptr)
+                            {
+                                LOG(Pointer_To_Null,"already exist");
+                                ::close(client_fd);
+                                continue;
+                            }
                             connects[client_fd] = new T;
                         }
                         connects[client_fd]->init(client_fd, &client_addr,epoll_fd,ET,one_shot);
                         current_connect_count++;
-                    }
-                    else if(connects[cur_fd]->status == conn::CLOSE)
-                    {
-                        LOG_MSG("connect close");
-                        CONNECTS_REMOVE_FD;
                     }
                     else if(events[event_index].events & EPOLLRDHUP)
                     {

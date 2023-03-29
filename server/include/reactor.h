@@ -84,7 +84,7 @@ namespace hzd
             close();
         }
 
-#define CONNECTS_REMOVE_FD do                           \
+#define CONNECTS_REMOVE_FD_REACTOR do                           \
         {                                               \
             T* tmp = connects[cur_fd];                  \
             connects.erase(cur_fd);                     \
@@ -154,7 +154,7 @@ namespace hzd
                         if(connects[cur_fd]->status == conn::CLOSE)
                         {
                             LOG_MSG("connect close");
-                            CONNECTS_REMOVE_FD;
+                            CONNECTS_REMOVE_FD_REACTOR;
                         }
                         else if(events[event_index].events & EPOLLRDHUP)
                         {
@@ -169,7 +169,7 @@ namespace hzd
                                 {
 
                                 }
-                                CONNECTS_REMOVE_FD;
+                                CONNECTS_REMOVE_FD_REACTOR;
                             }
                         }
                         else if(events[event_index].events & EPOLLERR)
@@ -185,7 +185,7 @@ namespace hzd
                                 {
 
                                 }
-                                CONNECTS_REMOVE_FD;
+                                CONNECTS_REMOVE_FD_REACTOR;
                             }
                         }
                         else if(events[event_index].events & EPOLLOUT)
@@ -201,7 +201,7 @@ namespace hzd
                                 {
                                     LOG_FMT(Epoll_Write,"epoll write error","client IP=%s client Port = %u",
                                             inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
-                                    CONNECTS_REMOVE_FD;
+                                    CONNECTS_REMOVE_FD_REACTOR;
                                 }
                             }
                         }
@@ -218,7 +218,7 @@ namespace hzd
                                 {
                                     LOG_FMT(Epoll_Read,"epoll read error","client IP=%s client Port = %u",
                                             inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
-                                    CONNECTS_REMOVE_FD;
+                                    CONNECTS_REMOVE_FD_REACTOR;
                                 }
                             }
                         }
@@ -226,7 +226,7 @@ namespace hzd
                         {
                             LOG_FMT(None,"unknown error","client IP=%s client Port = %u",
                                     inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
-                            CONNECTS_REMOVE_FD;
+                            CONNECTS_REMOVE_FD_REACTOR;
                         }
                     }
                 }

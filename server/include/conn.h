@@ -395,7 +395,8 @@ namespace hzd {
           */
         virtual bool process_rdhup()
         {
-            LOG_FMT(None,"client close",CONN_LOG_IP_PORT_FMT);
+//            LOG_FMT(None,"client close",CONN_LOG_IP_PORT_FMT);
+            LOG_MSG("client rdhup close");
             notify_close();
             return true;
         }

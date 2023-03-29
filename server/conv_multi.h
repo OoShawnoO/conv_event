@@ -3,6 +3,7 @@
 
 #include "server/include/reactor.h"
 #include "server/include/acceptor.h"
+#include <atomic>
 
 namespace hzd
 {
@@ -19,8 +20,8 @@ namespace hzd
         connpool<T>* conn_pool{nullptr};
         std::vector<reactor<T>> reactors;
         size_t max_connect_count{10000};
-
     public:
+        std::atomic<int> current_connect_count{0};
         conv_multi(std::string _ip,short _port,int reactor_count = 4):ip(std::move(_ip)),port(_port)
         {
             run = true;
@@ -182,6 +183,7 @@ namespace hzd
 
         void wait(int time_out=-1)
         {
+            if(conn_pool) _acceptor.conn_pool = conn_pool;
             for(auto& r : reactors)
             {
                 r.init(ET,one_shot,_thread_pool,conn_pool,&conn_queue);
