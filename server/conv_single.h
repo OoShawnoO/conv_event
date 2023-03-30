@@ -128,11 +128,10 @@ namespace hzd {
         int socket_fd{-1};
         sockaddr_in my_addr{};
         int listen_queue_count{32};
-
         int epoll_fd{-1};
         epoll_event* events{nullptr};
         int max_events_count{1024};
-        int max_connect_count{10000};
+        int max_connect_count{200000};
         int current_connect_count{0};
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool{nullptr};

@@ -9,6 +9,8 @@ namespace hzd
 {
     template <class T>
     class conv_multi{
+        friend class reactor<T>;
+        friend class acceptor<T>;
         bool ET{false};
         bool one_shot{true};
         bool _thread_pool{false};
@@ -19,7 +21,7 @@ namespace hzd
         bool run{true};
         connpool<T>* conn_pool{nullptr};
         std::vector<reactor<T>> reactors;
-        size_t max_connect_count{10000};
+        size_t max_connect_count{200000};
     public:
         std::atomic<int> current_connect_count{0};
         conv_multi(std::string _ip,short _port,int reactor_count = 4):ip(std::move(_ip)),port(_port)
@@ -27,7 +29,7 @@ namespace hzd
             run = true;
             reactors.resize(reactor_count);
             reactor<T>::set_run_true();
-            _acceptor.init(ip,port,&conn_queue,conn_pool);
+            _acceptor.init(this);
         };
         ~conv_multi()
         {
@@ -183,10 +185,11 @@ namespace hzd
 
         void wait(int time_out=-1)
         {
-            if(conn_pool) _acceptor.conn_pool = conn_pool;
+            if(conn_pool) _acceptor.set_conn_pool(conn_pool);
+            reactor<T>::set_run_true();
             for(auto& r : reactors)
             {
-                r.init(ET,one_shot,_thread_pool,conn_pool,&conn_queue);
+                r.init(this);
                 using func = void(*)(void*);
                 std::thread t(static_cast<func>(&reactor<T>::work),(void*)&r);
                 t.detach();

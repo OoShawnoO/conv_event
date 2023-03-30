@@ -8,6 +8,8 @@
 namespace hzd
 {
     template <class T>
+    class conv_multi;
+    template <class T>
     class acceptor {
         void close()
         {
@@ -23,6 +25,7 @@ namespace hzd
             }
             delete event;
             event = nullptr;
+            parent = nullptr;
         }
 
         /**
@@ -102,7 +105,6 @@ namespace hzd
                 exit(-1);
             }
         }
-
         /**
           * @brief prepare epoll event
           * @note None
@@ -129,7 +131,12 @@ namespace hzd
                 exit(-1);
             }
         }
-
+        /**
+        * @brief accept new connect
+        * @note None
+        * @param None
+        * @retval None
+        */
         void _accept_()
         {
             sockaddr_in client_addr{};
@@ -151,6 +158,7 @@ namespace hzd
                 t = new T;
                 if(t == nullptr){return;}
             }
+            parent->current_connect_count++;
             t->init(fd,&client_addr);
             conn_queue->push(t);
         }
@@ -163,9 +171,9 @@ namespace hzd
         safe_queue<T*>* conn_queue;
         int epoll_fd{-1};
         epoll_event* event{nullptr};
-
-    public:
+        conv_multi<T>* parent{nullptr};
         connpool<T>* conn_pool{nullptr};
+    public:
         acceptor() = default;
         ~acceptor()
         {
@@ -222,13 +230,23 @@ namespace hzd
           * @retval None
           */
         void set_listen_queue_count(int size){if(size >= 0) listen_queue_count = size;}
-
-        void init(std::string _ip,short _port,safe_queue<T*>* _conn_queue,connpool<T>* cp = nullptr)
+        /**
+        * @brief set connect pool
+        * @note None
+        * @param None
+        * @retval None
+        */
+        void set_conn_pool(connpool<T>* cp)
         {
-            ip = std::move(_ip);
-            port = _port;
-            conn_queue = _conn_queue;
             conn_pool = cp;
+        }
+        void init(conv_multi<T>* _parent)
+        {
+            parent = _parent;
+            conn_pool = parent->conn_pool;
+            ip = parent->ip;
+            port = parent->port;
+            conn_queue = &parent->conn_queue;
             _create_socket_();
             _prepare_socket_address_();
 
@@ -243,12 +261,16 @@ namespace hzd
             int ret;
             while(true)
             {
-                if((ret = epoll_wait(epoll_fd,event,1024,0) > 0))
+                if((ret = epoll_wait(epoll_fd,event,1024,-1)) >= 0)
                 {
                     for(int i=0;i<ret;i++)
                     {
                         _accept_();
                     }
+                }
+                else
+                {
+                    break;
                 }
             }
             close();

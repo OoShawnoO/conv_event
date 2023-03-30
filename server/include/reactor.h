@@ -7,19 +7,9 @@
 namespace hzd
 {
     template <class T>
+    class conv_multi;
+    template <class T>
     class reactor {
-        bool ET{false};
-        bool one_shot{true};
-
-        int epoll_fd{-1};
-        epoll_event* events{nullptr};
-        int max_events_count{1024};
-        std::unordered_map<int,T*> connects;
-        threadpool<T>* thread_pool{nullptr};
-        connpool<T>* conn_pool{nullptr};
-
-        safe_queue<T*>* conn_queue{nullptr};
-
         void close()
         {
             if(epoll_fd != -1)
@@ -31,6 +21,7 @@ namespace hzd
             events = nullptr;
             delete thread_pool;
             thread_pool = nullptr;
+            parent = nullptr;
         }
         /**
           * @brief prepare epoll event
@@ -58,34 +49,21 @@ namespace hzd
                 exit(-1);
             }
         }
-    public:
-        static void work(void* r)
-        {
-            auto* reac = (reactor<T>*)r;
-            reac->work();
-        }
+    protected:
+        bool ET{false};
+        bool one_shot{true};
+        int epoll_fd{-1};
+        epoll_event* events{nullptr};
+        int max_events_count{1024};
+        std::unordered_map<int,T*> connects;
+        threadpool<T>* thread_pool{nullptr};
+        connpool<T>* conn_pool{nullptr};
+        safe_queue<T*>* conn_queue{nullptr};
+        conv_multi<T>* parent{nullptr};
 
-        static bool run;
-        static void set_run_false()
-        {
-            run = false;
-        }
-        static void set_run_true()
-        {
-            run = true;
-        }
-
-        reactor()
-        {
-            _prepare_epoll_event_();
-        }
-        ~reactor()
-        {
-            close();
-        }
-
-#define CONNECTS_REMOVE_FD_REACTOR do                           \
+#define CONNECTS_REMOVE_FD_REACTOR do                   \
         {                                               \
+            parent->current_connect_count--;            \
             T* tmp = connects[cur_fd];                  \
             connects.erase(cur_fd);                     \
             tmp->close();                               \
@@ -101,6 +79,46 @@ namespace hzd
             }                                           \
         }while(0)
 
+#define CONNECTS_REMOVE_FD_REACTOR_OUT do{              \
+            parent->current_connect_count--;            \
+            T* tmp = it->second;                        \
+            it = connects.erase(it);                    \
+            tmp->close();                               \
+            if(conn_pool)                               \
+            {                                           \
+                conn_pool->release(tmp);                \
+                tmp = nullptr;                          \
+            }                                           \
+            else                                        \
+            {                                           \
+                delete tmp;                             \
+                tmp = nullptr;                          \
+            }                                           \
+        }while(0)
+
+    public:
+        static void work(void* r)
+        {
+            auto* reac = (reactor<T>*)r;
+            reac->work();
+        }
+        static bool run;
+        static void set_run_false()
+        {
+            run = false;
+        }
+        static void set_run_true()
+        {
+            run = true;
+        }
+        reactor()
+        {
+            _prepare_epoll_event_();
+        }
+        ~reactor()
+        {
+            close();
+        }
         /**
   * @brief set max events count
   * @note None
@@ -108,26 +126,36 @@ namespace hzd
   * @retval None
   */
         void set_max_events_count(int size){if(size >= 0) max_events_count = size;}
-
-        void init(bool _et,bool _one_shot,bool _thread_pool,connpool<T>* _conn_pool,safe_queue<T*>* _conn_queue)
+        void init(conv_multi<T>* _parent)
         {
-            ET = _et;
-            one_shot = _one_shot;
-            if(_thread_pool)
+            parent = _parent;
+            ET = parent->ET;
+            one_shot = parent->one_shot;
+            if(parent->_thread_pool)
             {
                 if(!thread_pool)
                     thread_pool = new threadpool<T>;
             }
-            conn_pool = _conn_pool;
-            conn_queue = _conn_queue;
+            conn_pool = parent->conn_pool;
+            conn_queue = &parent->conn_queue;
         }
-
         void work(int time_out=0)
         {
             int ret,cur_fd;
             T* t = nullptr;
             while(run)
             {
+                for(auto it = connects.begin();it != connects.end();)
+                {
+                    if(it->second->status == conn::CLOSE)
+                    {
+                        CONNECTS_REMOVE_FD_REACTOR_OUT;
+                    }
+                    else
+                    {
+                        it++;
+                    }
+                }
                 if((t = conn_queue->pop()) != nullptr)
                 {
                     t->init(epoll_fd,ET,one_shot);
@@ -151,12 +179,7 @@ namespace hzd
                     for(int event_index = 0;event_index < ret; event_index++)
                     {
                         cur_fd = events[event_index].data.fd;
-                        if(connects[cur_fd]->status == conn::CLOSE)
-                        {
-                            LOG_MSG("connect close");
-                            CONNECTS_REMOVE_FD_REACTOR;
-                        }
-                        else if(events[event_index].events & EPOLLRDHUP)
+                        if(events[event_index].events & EPOLLRDHUP)
                         {
                             connects[cur_fd]->status = conn::RDHUP;
                             if(thread_pool)
@@ -231,6 +254,7 @@ namespace hzd
                     }
                 }
             }
+            close();
         }
     };
     template<class T>
