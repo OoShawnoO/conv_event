@@ -156,14 +156,16 @@ namespace hzd
                         it++;
                     }
                 }
-                if((t = conn_queue->pop()) != nullptr)
+                if((t = conn_queue->pop()) != nullptr && connects[t->fd()] == nullptr)
                 {
                     t->init(epoll_fd,ET,one_shot);
-                    if(connects[t->fd()] != nullptr)
-                    {
-                        LOG(Pointer_To_Null,"already exist");
-                    }
                     connects[t->fd()] = t;
+                }
+                else if(connects[t->fd()] != nullptr)
+                {
+                    LOG(Pointer_To_Null,"already exist");
+                    conn_queue->push(t);
+                    t = nullptr;
                 }
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) == 0)
                 {
