@@ -326,9 +326,7 @@ namespace hzd {
             return epoll_mod(epoll_fd,socket_fd,event,ET,one_shot);
         }
         /* thread safety */
-        void notify_close() {
-            shutdown(socket_fd,SHUT_RDWR);
-            next(EPOLLIN);
+        inline void notify_close() {
             status = CLOSE;
         }
         /* common virtual member methods */

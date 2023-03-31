@@ -195,6 +195,7 @@ namespace hzd
                 t.detach();
             }
             _acceptor.work();
+            close();
         }
     };
 }

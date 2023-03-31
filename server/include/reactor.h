@@ -59,6 +59,7 @@ namespace hzd
         threadpool<T>* thread_pool{nullptr};
         connpool<T>* conn_pool{nullptr};
         safe_queue<T*>* conn_queue{nullptr};
+        std::deque<int> close_queue;
         conv_multi<T>* parent{nullptr};
 
 #define CONNECTS_REMOVE_FD_REACTOR do                   \
@@ -101,6 +102,7 @@ namespace hzd
         {
             auto* reac = (reactor<T>*)r;
             reac->work();
+            exit(0);
         }
         static bool run;
         static void set_run_false()
@@ -161,10 +163,14 @@ namespace hzd
                     t->init(epoll_fd,ET,one_shot);
                     connects[t->fd()] = t;
                 }
+                else if(!t)
+                {
+
+                }
                 else if(connects[t->fd()] != nullptr)
                 {
                     LOG(Pointer_To_Null,"already exist");
-                    conn_queue->push(t);
+                    conn_queue->push_front(t);
                     t = nullptr;
                 }
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) == 0)
@@ -256,7 +262,6 @@ namespace hzd
                     }
                 }
             }
-            close();
         }
     };
     template<class T>

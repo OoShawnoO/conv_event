@@ -1,19 +1,28 @@
 #ifndef USE_CONV_SAFE_QUEUE_H
 #define USE_CONV_SAFE_QUEUE_H
 
-#include <queue>
+#include <deque>
 #include <mutex>
 namespace hzd
 {
     template<class T>
     class safe_queue {
-        std::queue<T> q;
+        std::deque<T> q;
         std::mutex mtx;
     public:
+        ~safe_queue()
+        {
+            q.clear();
+        }
         void push(T t)
         {
             std::lock_guard<std::mutex> guard(mtx);
-            q.push(t);
+            q.push_back(t);
+        }
+        void push_front(T t)
+        {
+            std::lock_guard<std::mutex> guard(mtx);
+            q.push_front(t);
         }
         T pop()
         {
@@ -21,13 +30,18 @@ namespace hzd
             if(!q.empty())
             {
                 T ret = q.front();
-                q.pop();
+                q.pop_front();
                 return ret;
             }
             else
             {
                 return nullptr;
             }
+        }
+        bool empty()
+        {
+            std::lock_guard<std::mutex> guard(mtx);
+            return q.empty();
         }
     };
 }

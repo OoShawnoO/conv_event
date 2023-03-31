@@ -136,6 +136,7 @@ namespace hzd {
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool{nullptr};
         connpool<T>* conn_pool{nullptr};
+        safe_queue<int>* close_queue{nullptr};
     public:
         /* Constructor */
         conv_single(std::string _ip,short _port,bool _one_shot = false,bool ET = false)
@@ -143,7 +144,7 @@ namespace hzd {
         {
             _create_socket_();
             _prepare_socket_address_();
-
+            close_queue = new safe_queue<int>;
             signal(SIGPIPE,SIG_IGN);
         }
         /* Destructor */
@@ -197,10 +198,12 @@ namespace hzd {
             if(socket_fd != -1)
             {
                 ::close(socket_fd);
+                socket_fd = -1;
             }
             if(epoll_fd != -1)
             {
                 ::close(epoll_fd);
+                epoll_fd = -1;
             }
             delete []events;
             events = nullptr;
@@ -212,6 +215,8 @@ namespace hzd {
             thread_pool = nullptr;
             delete conn_pool;
             conn_pool = nullptr;
+            delete close_queue;
+            close_queue = nullptr;
         }
         /**
           * @brief enable address reuse

@@ -156,7 +156,7 @@ namespace hzd
             else
             {
                 t = new T;
-                if(t == nullptr){return;}
+                if(!t){return;}
             }
             parent->current_connect_count++;
             t->init(fd,&client_addr);
@@ -252,6 +252,12 @@ namespace hzd
 
 
         }
+        static bool run;
+        static void sigint(int arg)
+        {
+            run = false;
+        }
+
         void work()
         {
             _bind_();
@@ -259,9 +265,13 @@ namespace hzd
             _register_listen_fd_();
             _listen_();
             int ret;
-            while(true)
+            struct sigaction sigact{};
+            sigact.sa_handler = acceptor<T>::sigint;
+            sigaction(SIGINT,&sigact,nullptr);
+            run = true;
+            while(run)
             {
-                if((ret = epoll_wait(epoll_fd,event,1024,-1)) >= 0)
+                if((ret = epoll_wait(epoll_fd,event,1024,5)) >= 0)
                 {
                     for(int i=0;i<ret;i++)
                     {
@@ -276,6 +286,8 @@ namespace hzd
             close();
         }
     };
+    template<class T>
+    bool acceptor<T>::run = false;
 }
 
 #endif
