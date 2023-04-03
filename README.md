@@ -36,9 +36,23 @@
     bool process_rdhup(); /* process the EPOLLRDHUP */
     bool process_error(); /* process the EPOLLERR */
     ```
+
+- Multi-reactor model
+    ```c++
+    /* one reactor for accepting new connect */
+    /* multi reactor for distributing event */
+    hzd::conv_multi<conn_a> base;
+    ```
+- Single-reactor model
+    ```c++
+    /* one reactor for accepting new connect
+     * and distributing event */
+    hzd::conv_single<conn_a> base;
+    ```
+
 - Use multi-thread
     ```c++
-    hzd::conv<conn_a> base;
+    hzd::conv_multi<conn_a> base;
     base.multi_thread(); /* 创建线程池 */
     base.wait();
     ```
