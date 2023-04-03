@@ -1,9 +1,7 @@
 #ifndef USE_CONV_ACCEPTOR_H
 #define USE_CONV_ACCEPTOR_H
 
-#include <utility>
-
-#include "conn.h"
+#include "conn.h"   /* conn */
 
 namespace hzd
 {

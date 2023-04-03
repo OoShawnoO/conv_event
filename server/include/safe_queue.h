@@ -1,8 +1,8 @@
 #ifndef USE_CONV_SAFE_QUEUE_H
 #define USE_CONV_SAFE_QUEUE_H
 
-#include <deque>
-#include <mutex>
+#include <deque>        /* deque */
+#include <mutex>        /* mutex */
 namespace hzd
 {
     template<class T>

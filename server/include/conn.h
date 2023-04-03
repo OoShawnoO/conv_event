@@ -7,7 +7,7 @@
 #include "ErrorLog/ErrorLog.h"  /* hzd:: LOG LOG_MSG LOG_FMT */
 #include <cstring>              /* memcpy bzero memset */
 #include "utils.h"              /* hzd::header */
-#include "safe_queue.h"
+#include "safe_queue.h"         /* safe_queue */
 #include <memory>               /* unique_ptr */
 #include <fcntl.h>              /* fcntl */
 #include <deque>                /* deque */

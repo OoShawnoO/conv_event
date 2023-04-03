@@ -1,8 +1,8 @@
 #ifndef USE_CONV_REACTOR_H
 #define USE_CONV_REACTOR_H
 
-#include "conn.h"
-#include "threadpool.h"
+#include "conn.h"           /* conn */
+#include "threadpool.h"     /* threadpool */
 
 namespace hzd
 {
@@ -158,6 +158,7 @@ namespace hzd
                         it++;
                     }
                 }
+
                 if((t = conn_queue->pop()) != nullptr && connects[t->fd()] == nullptr)
                 {
                     t->init(epoll_fd,ET,one_shot);
@@ -173,6 +174,7 @@ namespace hzd
                     conn_queue->push_front(t);
                     t = nullptr;
                 }
+
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) == 0)
                 {
                     continue;
