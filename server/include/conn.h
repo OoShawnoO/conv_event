@@ -11,6 +11,7 @@
 #include <algorithm>            /* find */
 #include <memory>               /* unique_ptr */
 #include <atomic>               /* atomic */
+#include "LockFreeQueue.h"
 
 namespace hzd {
 
@@ -275,49 +276,35 @@ namespace hzd {
         #else
                 static_assert(std::is_base_of<conn,T>::value,"must derived from class hzd::conn.");
         #endif
-
-        size_t size{0};
-        size_t max_count;
-        std::vector<T*> object_vector;
-        std::mutex mtx;
+        LockFreeQueue<T*> q;
     public:
-        explicit connpool(size_t _size,size_t _max_count=10000)
-                :size(_size),max_count(_max_count)
+        explicit connpool(size_t _size)
         {
-            for(size_t i=0;i<size;i++)
+            for(size_t i=0;i<_size;i++)
             {
-                object_vector.push_back(new T);
+                q.push(new T);
             }
         }
         ~connpool()
         {
-            for(int i=0;i<object_vector.size();i++)
-            {
-                delete object_vector[i];
-                object_vector[i] = nullptr;
-            }
+
         }
         connpool(const connpool<T>&) = delete;
         const connpool<T>& operator=(const connpool<T>&) = delete;
 
         T* acquire()
         {
-            std::lock_guard<std::mutex> guard(mtx);
-            if(object_vector.empty())
+            T* t;
+            if(!q.pop(t))
             {
-                if(object_vector.size() >= max_count) return nullptr;
-                T* t = new T;
-                object_vector.push_back(t);
+                t = new T;
             }
-            T* t =object_vector.back();
-            object_vector.pop_back();
             return t;
         }
 
         bool release(T* t)
         {
-            std::lock_guard<std::mutex> guard(mtx);
-            object_vector.push_back(t);
+            q.push(t);
             return true;
         }
     };
