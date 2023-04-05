@@ -154,7 +154,7 @@ namespace hzd
             else
             {
                 t = new T;
-                if(!t){return;}
+                if(!t){::close(fd);return;}
             }
             parent->current_connect_count++;
             t->init(fd,&client_addr);

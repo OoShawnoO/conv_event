@@ -62,7 +62,7 @@ namespace hzd
                 LOG(Out_Of_Bound,"threads count or max process count <= 0");
                 exit(-1);
             }
-            threads = (std::thread*)malloc(sizeof(std::thread)*thread_count);
+            threads = new std::thread[thread_count];
             if(!threads)
             {
                 LOG(Bad_Malloc,"threads bad new");
@@ -80,7 +80,7 @@ namespace hzd
         ~threadpool()
         {
             stop = true;
-            free(threads);
+            delete []threads;
         }
         static void* work(void* arg)
         {
