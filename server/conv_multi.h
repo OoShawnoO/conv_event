@@ -17,12 +17,11 @@ namespace hzd
         std::string ip;
         short port;
         acceptor<T> _acceptor;
-        safe_queue<T*> conn_queue;
         bool run{true};
         connpool<T>* conn_pool{nullptr};
-        std::vector<reactor<T>> reactors;
         size_t max_connect_count{200000};
     public:
+        std::vector<reactor<T>> reactors;
         std::atomic<int> current_connect_count{0};
         conv_multi(std::string _ip,short _port,int reactor_count = 4):ip(std::move(_ip)),port(_port)
         {

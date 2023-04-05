@@ -322,7 +322,7 @@ namespace hzd {
           * @param event EPOLL_EVENTS
           * @retval success or not
           */
-        int next(EPOLL_EVENTS event) const{
+        int next(uint32_t event) const{
             return epoll_mod(epoll_fd,socket_fd,event,ET,one_shot);
         }
         /* thread safety */

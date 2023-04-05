@@ -145,7 +145,7 @@ namespace hzd
                 LOG(Socket_Accept,"socket accept error");
                 return;
             }
-            T* t = nullptr;
+            T* t;
             if(conn_pool)
             {
                 t = conn_pool->acquire();
@@ -158,7 +158,19 @@ namespace hzd
             }
             parent->current_connect_count++;
             t->init(fd,&client_addr);
-            conn_queue->push(t);
+            parent->reactors[parent->current_connect_count%parent->reactors.size()].add_conn(t);
+        }
+        /**
+        * @brief register SIGINT prcess method
+        * @note None
+        * @param None
+        * @retval None
+        */
+        inline void _register_sigint_()
+        {
+            struct sigaction sigact{};
+            sigact.sa_handler = acceptor<T>::sigint;
+            sigaction(SIGINT,&sigact,nullptr);
         }
     protected:
         std::string ip{};
@@ -166,7 +178,6 @@ namespace hzd
         int socket_fd{-1};
         sockaddr_in my_addr{};
         int listen_queue_count{32};
-        safe_queue<T*>* conn_queue;
         int epoll_fd{-1};
         epoll_event* event{nullptr};
         conv_multi<T>* parent{nullptr};
@@ -244,14 +255,11 @@ namespace hzd
             conn_pool = parent->conn_pool;
             ip = parent->ip;
             port = parent->port;
-            conn_queue = &parent->conn_queue;
             _create_socket_();
             _prepare_socket_address_();
-
-
         }
         static bool run;
-        static void sigint(int arg)
+        static void sigint(int)
         {
             run = false;
         }
@@ -262,10 +270,9 @@ namespace hzd
             _prepare_epoll_event_();
             _register_listen_fd_();
             _listen_();
+            _register_sigint_();
+
             int ret;
-            struct sigaction sigact{};
-            sigact.sa_handler = acceptor<T>::sigint;
-            sigaction(SIGINT,&sigact,nullptr);
             run = true;
             while(run)
             {

@@ -62,7 +62,6 @@ namespace hzd
                 LOG(Out_Of_Bound,"threads count or max process count <= 0");
                 exit(-1);
             }
-//            threads = new std::thread[thread_count];
             threads = (std::thread*)malloc(sizeof(std::thread)*thread_count);
             if(!threads)
             {
@@ -82,7 +81,6 @@ namespace hzd
         {
             stop = true;
             free(threads);
-//            delete []threads;
         }
         static void* work(void* arg)
         {
