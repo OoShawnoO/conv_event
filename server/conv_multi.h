@@ -11,6 +11,7 @@ namespace hzd
     class conv_multi{
         friend class reactor<T>;
         friend class acceptor<T>;
+    protected:
         bool ET{false};
         bool one_shot{true};
         bool _thread_pool{false};
@@ -30,7 +31,7 @@ namespace hzd
             reactor<T>::set_run_true();
             _acceptor.init(this);
         };
-        ~conv_multi()
+        virtual ~conv_multi()
         {
             close();
         }
@@ -112,7 +113,7 @@ namespace hzd
         {
             if(!conn_pool)
             {
-                conn_pool = new connpool<T>(size,max_connect_count);
+                conn_pool = new connpool<T>(size);
             }
         }
         /**

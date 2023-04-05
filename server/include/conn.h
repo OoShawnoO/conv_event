@@ -1,19 +1,16 @@
 #ifndef CONV_EVENT_CONN_H
 #define CONV_EVENT_CONN_H
 
+#include "socket_io.h"
 #include <unistd.h>             /* close */
 #include <arpa/inet.h>          /* socket */
 #include <sys/epoll.h>          /* epoll */
-#include "ErrorLog/ErrorLog.h"  /* hzd:: LOG LOG_MSG LOG_FMT */
-#include <cstring>              /* memcpy bzero memset */
-#include "utils.h"              /* hzd::header */
-#include "safe_queue.h"         /* safe_queue */
-#include <memory>               /* unique_ptr */
 #include <fcntl.h>              /* fcntl */
 #include <deque>                /* deque */
 #include <vector>               /* vector */
 #include <algorithm>            /* find */
-#include <mutex>                /* mutex */
+#include <memory>               /* unique_ptr */
+#include <atomic>               /* atomic */
 
 namespace hzd {
 
@@ -86,16 +83,10 @@ namespace hzd {
         return ret;
     }
 
-    class conn {
+    class conn : public socket_io{
         /* private member variable */
         bool ET{false};
         bool one_shot{true};
-        char read_buffer[2048] = {0};
-        char write_buffer[2048] = {0};
-        size_t read_cursor{0};
-        size_t write_cursor{0};
-        size_t write_total_bytes{0};
-        size_t read_total_bytes{0};
         /* private member method */
         /**
           * @brief base of process out data
@@ -117,76 +108,7 @@ namespace hzd {
         {
             return process_in();
         }
-        /**
-          * @brief base of send data
-          * @note None
-          * @param data data
-          * @retval success or not
-          */
-        bool send_base(const char* data)
-        {
-            size_t send_count;
-            write_cursor = 0;
-            while(write_cursor < write_total_bytes)
-            {
-                bzero(write_buffer,sizeof(write_buffer));
-                memcpy(write_buffer,data+write_cursor,sizeof(write_buffer));
-                if((send_count = ::send(socket_fd,write_buffer,sizeof(write_buffer),MSG_NOSIGNAL))<= 0)
-                {
-                    LOG(Conn_Send,"data send error");
-                    return false;
-                }
-                write_cursor += send_count;
-            }
-            return true;
-        }
-        /**
-          * @brief base of recv data
-          * @note None
-          * @param data data save in this string
-          * @retval success or not
-          */
-        bool recv_base(std::string& data)
-        {
-            if(read_total_bytes <= 0)
-            {
-                LOG(Conn_Recv,"recv size = 0");
-                return false;
-            }
-            size_t read_count;
-            read_cursor = 0;
-            data.clear();
-            while(read_cursor < read_total_bytes)
-            {
-                bzero(read_buffer,sizeof(read_buffer));
-                if((read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),0))<=0)
-                {
-                    if(read_count == -1)
-                    {
-                        if(errno == EAGAIN || errno == EWOULDBLOCK)
-                        {
-                            return true;
-                        }
-                        LOG(Conn_Recv,"data recv error");
-                        return false;
-                    }
-                    else
-                    {
-                        if(errno == EAGAIN || errno == EWOULDBLOCK)
-                        {
-                            return true;
-                        }
-                        LOG(Conn_Recv,"client close");
-                        return false;
-                    }
-                }
-                data += read_buffer;
-                read_cursor += read_count;
-            }
-            return true;
-        }
     protected:
-        int socket_fd{-1};
         int epoll_fd{0};
         sockaddr_in sock_addr{};
     public:
@@ -212,110 +134,6 @@ namespace hzd {
         /* common member variable */
         Status status{OK};
         /* common base member methods */
-        /**
-          * @brief send data by using hzd::header
-          * @note None
-          * @param data data
-          * @param type data-type
-          * @retval None
-          */
-        bool send_with_header(const char* data)
-        {
-            write_total_bytes = strlen(data) + 1;
-            if(write_total_bytes <= 1)
-            {
-                LOG(Conn_Send,"send data = null");
-                return false;
-            }
-            header h{write_total_bytes};
-            if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
-            {
-                LOG(Conn_Send,"header send error");
-                return false;
-            }
-            return send_base(data);
-        }
-        /**
-          * @brief send data by using hzd::header
-          * @note None
-          * @param data data
-          * @param type data-type
-          * @retval None
-          */
-        bool send_with_header(std::string& data)
-        {
-            write_total_bytes = data.size()+1;
-            if(write_total_bytes <= 1)
-            {
-                LOG(Conn_Send,"send data = null");
-                return false;
-            }
-            header h{write_total_bytes};
-            if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
-            {
-                LOG(Conn_Send,"header send error");
-                return false;
-            }
-            return send_base(data.c_str());
-        }
-        /**
-          * @brief send data by given length of data
-          * @note None
-          * @param data data
-          * @param size data size
-          * @retval None
-          */
-        bool send(std::string& data,size_t size)
-        {
-            write_total_bytes = size;
-            if(write_total_bytes <= 0)
-            {
-                LOG(Conn_Send,"send data = null");
-                return false;
-            }
-            return send_base(data.c_str());
-        }
-        /**
-          * @brief recv data and output type
-          * @note None
-          * @param data data
-          * @param type data-type
-          * @retval None
-          */
-        bool recv_with_header(std::string& data)
-        {
-            header h{};
-            if(::recv(socket_fd,&h,HEADER_SIZE,0) <= 0)
-            {
-                LOG(Conn_Recv,"recv header error");
-                return false;
-            }
-            read_total_bytes = h.size;
-            return recv_base(data);
-        }
-        /**
-          * @brief recv data by given size
-          * @note None
-          * @param data data
-          * @param size data-size
-          * @retval None
-          */
-        bool recv(std::string& data,size_t size)
-        {
-            read_total_bytes = size;
-            return recv_base(data);
-        }
-        /**
-        * @brief recv all data from system buffer
-        * @note None
-        * @param None
-        * @retval None
-        */
-        bool recv_all(std::string& data)
-        {
-            read_total_bytes = SIZE_MAX;
-            return recv_base(data);
-        }
         /**
           * @brief register next event
           * @note None
@@ -464,7 +282,7 @@ namespace hzd {
         std::mutex mtx;
     public:
         explicit connpool(size_t _size,size_t _max_count=10000)
-        :size(_size),max_count(_max_count)
+                :size(_size),max_count(_max_count)
         {
             for(size_t i=0;i<size;i++)
             {

@@ -146,7 +146,7 @@ namespace hzd {
             signal(SIGPIPE,SIG_IGN);
         }
         /* Destructor */
-        ~conv_single()
+        virtual ~conv_single()
         {
             close();
         }
