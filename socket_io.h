@@ -24,7 +24,9 @@ namespace hzd {
             {
                 bzero(write_buffer,sizeof(write_buffer));
                 memcpy(write_buffer,data+write_cursor,sizeof(write_buffer));
-                if((send_count = ::send(socket_fd,write_buffer,sizeof(write_buffer),MSG_NOSIGNAL))<= 0)
+                if((send_count = ::send(socket_fd,write_buffer,
+                                        (write_total_bytes-write_cursor) > sizeof(write_buffer) ? sizeof(write_buffer) : (write_total_bytes-write_cursor)
+                                        ,MSG_NOSIGNAL))<= 0)
                 {
                     LOG(Conn_Send,"data send error");
                     return false;
@@ -52,7 +54,9 @@ namespace hzd {
             while(read_cursor < read_total_bytes)
             {
                 bzero(read_buffer,sizeof(read_buffer));
-                if((read_count = ::recv(socket_fd,read_buffer,sizeof(read_buffer),0))<=0)
+                if((read_count = ::recv(socket_fd,read_buffer,
+                                        (read_total_bytes-read_cursor) > sizeof(read_buffer) ? sizeof(read_buffer) : (read_total_bytes-read_cursor)
+                                        ,0))<=0)
                 {
                     if(read_count == -1)
                     {
