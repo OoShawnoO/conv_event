@@ -44,8 +44,7 @@ namespace hzd
     private:
         int thread_count;
         int max_process_count;
-        std::mutex mutex;
-        std::queue<T*> process_pool;
+        safe_queue<T*> process_pool;
         std::thread* threads;
         #if __cplusplus > 201703L
         std::counting_semaphore<0> sem{0};
@@ -93,15 +92,13 @@ namespace hzd
             while(!stop)
             {
                 sem.acquire();
-                mutex.lock();
+                T* con = nullptr;
                 if(process_pool.empty())
                 {
                     continue;
                 }
-                auto con = process_pool.front();
-                process_pool.pop();
-                mutex.unlock();
-                if(!con || con->fd() == -1)
+                process_pool.pop(con);
+                if(!con)
                 {
                     continue;
                 }
@@ -111,14 +108,7 @@ namespace hzd
 
         bool add(T* t)
         {
-            mutex.lock();
-            if(process_pool.size() > max_process_count)
-            {
-                mutex.unlock();
-                return false;
-            }
             process_pool.push(t);
-            mutex.unlock();
             sem.release();
             return true;
         }

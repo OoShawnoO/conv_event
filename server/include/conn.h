@@ -11,7 +11,7 @@
 #include <algorithm>            /* find */
 #include <memory>               /* unique_ptr */
 #include <atomic>               /* atomic */
-#include "LockFreeQueue.h"
+#include "safe_queue.h"
 
 namespace hzd {
 
@@ -276,9 +276,10 @@ namespace hzd {
         #else
                 static_assert(std::is_base_of<conn,T>::value,"must derived from class hzd::conn.");
         #endif
-        LockFreeQueue<T*> q;
+        safe_queue<T*> q;
+        size_t size;
     public:
-        explicit connpool(size_t _size)
+        explicit connpool(size_t _size):size(_size)
         {
             for(size_t i=0;i<_size;i++)
             {
@@ -287,7 +288,16 @@ namespace hzd {
         }
         ~connpool()
         {
-
+            T* t = nullptr;
+            for(size_t i=0;i<size;i++)
+            {
+                if(q.pop(t))
+                {
+                    delete t;
+                }
+            }
+            delete t;
+            t = nullptr;
         }
         connpool(const connpool<T>&) = delete;
         const connpool<T>& operator=(const connpool<T>&) = delete;
@@ -298,6 +308,7 @@ namespace hzd {
             if(!q.pop(t))
             {
                 t = new T;
+                size++;
             }
             return t;
         }

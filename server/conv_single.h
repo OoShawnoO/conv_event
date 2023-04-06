@@ -293,7 +293,7 @@ namespace hzd {
         {
             if(!conn_pool)
             {
-                conn_pool = new connpool<T>(size,max_connect_count);
+                conn_pool = new connpool<T>(size);
             }
         }
         /**
