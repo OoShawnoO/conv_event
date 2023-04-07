@@ -59,7 +59,6 @@ namespace hzd
         threadpool<T>* thread_pool{nullptr};
         connpool<T>* conn_pool{nullptr};
         std::deque<T*> conn_queue;
-        std::deque<int> close_queue;
         conv_multi<T>* parent{nullptr};
 
 #define CONNECTS_REMOVE_FD_REACTOR do                   \
@@ -264,6 +263,7 @@ namespace hzd
                     }
                 }
             }
+            close();
         }
     };
     template<class T>

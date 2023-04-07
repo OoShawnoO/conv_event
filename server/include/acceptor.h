@@ -22,6 +22,7 @@ namespace hzd
                 epoll_fd = -1;
             }
             delete event;
+            reactor<T>::set_run_false();
             event = nullptr;
             parent = nullptr;
         }
@@ -160,18 +161,7 @@ namespace hzd
             t->init(fd,&client_addr);
             parent->reactors[parent->current_connect_count%parent->reactors.size()].add_conn(t);
         }
-        /**
-        * @brief register SIGINT prcess method
-        * @note None
-        * @param None
-        * @retval None
-        */
-        inline void _register_sigint_()
-        {
-            struct sigaction sigact{};
-            sigact.sa_handler = acceptor<T>::sigint;
-            sigaction(SIGINT,&sigact,nullptr);
-        }
+
     protected:
         std::string ip{};
         short port{};
@@ -259,10 +249,6 @@ namespace hzd
             _prepare_socket_address_();
         }
         static bool run;
-        static void sigint(int)
-        {
-            run = false;
-        }
 
         void work()
         {
@@ -270,7 +256,6 @@ namespace hzd
             _prepare_epoll_event_();
             _register_listen_fd_();
             _listen_();
-            _register_sigint_();
 
             int ret;
             run = true;

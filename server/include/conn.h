@@ -294,10 +294,10 @@ namespace hzd {
                 if(q.pop(t))
                 {
                     delete t;
+                    t = nullptr;
                 }
             }
             delete t;
-            t = nullptr;
         }
         connpool(const connpool<T>&) = delete;
         const connpool<T>& operator=(const connpool<T>&) = delete;
