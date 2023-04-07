@@ -20,6 +20,8 @@ namespace hzd
             delete []events;
             events = nullptr;
             delete thread_pool;
+            delete close_queue;
+            close_queue = nullptr;
             thread_pool = nullptr;
             parent = nullptr;
         }
@@ -60,7 +62,7 @@ namespace hzd
         connpool<T>* conn_pool{nullptr};
         std::deque<T*> conn_queue;
         conv_multi<T>* parent{nullptr};
-
+        safe_queue<int>* close_queue{nullptr};
 #define CONNECTS_REMOVE_FD_REACTOR do                   \
         {                                               \
             parent->current_connect_count--;            \
@@ -136,6 +138,7 @@ namespace hzd
                 if(!thread_pool)
                     thread_pool = new threadpool<T>;
             }
+            close_queue = new safe_queue<int>(20);
             conn_pool = parent->conn_pool;
         }
         void add_conn(T* t)
@@ -148,22 +151,28 @@ namespace hzd
             T* t;
             while(run)
             {
-                for(auto it = connects.begin();it != connects.end();)
+//                for(auto it = connects.begin();it != connects.end();)
+//                {
+//                    if(it->second->status == conn::CLOSE)
+//                    {
+//                        CONNECTS_REMOVE_FD_REACTOR_OUT;
+//                    }
+//                    else
+//                    {
+//                        it++;
+//                    }
+//                }
+                while(!close_queue->empty())
                 {
-                    if(it->second->status == conn::CLOSE)
-                    {
-                        CONNECTS_REMOVE_FD_REACTOR_OUT;
-                    }
-                    else
-                    {
-                        it++;
-                    }
+                    close_queue->pop(cur_fd);
+                    if(cur_fd == -1) continue;
+                    CONNECTS_REMOVE_FD_REACTOR;
                 }
                 while(!conn_queue.empty())
                 {
                     t = conn_queue.front();
                     conn_queue.pop_front();
-                    t->init(epoll_fd,ET,one_shot);
+                    t->init(epoll_fd,ET,one_shot,close_queue);
                     if(connects[t->fd()]!=nullptr)
                     {
                         LOG(Pointer_To_Null,"already exist");

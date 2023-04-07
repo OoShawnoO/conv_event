@@ -101,6 +101,24 @@ namespace hzd
             return head_ == tail_;
         }
     };
+    template<>
+    bool safe_queue<int>::pop(int& result)
+    {
+        Node* prevHead = head.load(std::memory_order_acquire);
+        Node* newHead;
+
+        do {
+            if(prevHead->next == nullptr) {
+                result = -1;
+                return false;
+            }
+            newHead = prevHead->next;
+        } while(!head.compare_exchange_strong(prevHead,newHead));
+
+        result = newHead->data;
+        release_node(prevHead);
+        return true;
+    }
 }
 
 #endif

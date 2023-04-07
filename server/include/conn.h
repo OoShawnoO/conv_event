@@ -112,6 +112,7 @@ namespace hzd {
     protected:
         int epoll_fd{0};
         sockaddr_in sock_addr{};
+        safe_queue<int>* close_queue{nullptr};
     public:
         enum Status
         {
@@ -147,6 +148,7 @@ namespace hzd {
         /* thread safety */
         inline void notify_close() {
             status = CLOSE;
+            if(close_queue) close_queue->push(socket_fd);
         }
         /* common virtual member methods */
         virtual void init(int _socket_fd,sockaddr_in* _addr)
@@ -155,9 +157,10 @@ namespace hzd {
             socket_fd = _socket_fd;
             sock_addr = *_addr;
         }
-        virtual void init(int _epoll_fd,bool et,bool _one_shot)
+        virtual void init(int _epoll_fd,bool et,bool _one_shot,safe_queue<int>* cq)
         {
             status = OK;
+            close_queue = cq;
             epoll_fd = _epoll_fd;
             ET = et;
             one_shot = _one_shot;
