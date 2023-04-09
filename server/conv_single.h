@@ -110,7 +110,7 @@ namespace hzd {
           */
         inline void _register_listen_fd_()
         {
-            if(epoll_add(epoll_fd,socket_fd,ET,false) < 0)
+            if(epoll_add(epoll_fd,socket_fd,ET,false,false) < 0)
             {
                 LOG(Epoll_Add,"epoll add error");
                 close();

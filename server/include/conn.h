@@ -38,14 +38,14 @@ namespace hzd {
       * @param socket_fd socket fd
       * @retval None
       */
-    static int epoll_add(int epoll_fd,int socket_fd,bool et,bool one_shot)
+    static int epoll_add(int epoll_fd,int socket_fd,bool et,bool one_shot,bool none_block = true)
     {
         epoll_event ev{};
         ev.data.fd = socket_fd;
         ev.events = EPOLLIN | EPOLLRDHUP;
         if(et) ev.events = ev.events | EPOLLET;
         if(one_shot) ev.events = ev.events | EPOLLONESHOT;
-        block_none(socket_fd);
+        if(none_block) block_none(socket_fd);
         return epoll_ctl(epoll_fd,EPOLL_CTL_ADD,socket_fd,&ev);
     }
     /**
