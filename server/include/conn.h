@@ -12,6 +12,7 @@
 #include <memory>               /* unique_ptr */
 #include <atomic>               /* atomic */
 #include "safe_queue.h"
+#include "lock_queue.h"
 
 namespace hzd {
 

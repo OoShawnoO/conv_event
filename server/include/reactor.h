@@ -21,6 +21,8 @@ namespace hzd
             events = nullptr;
             delete thread_pool;
             delete close_queue;
+            delete conn_queue;
+            conn_queue = nullptr;
             close_queue = nullptr;
             thread_pool = nullptr;
             parent = nullptr;
@@ -60,7 +62,7 @@ namespace hzd
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool{nullptr};
         connpool<T>* conn_pool{nullptr};
-        std::deque<T*> conn_queue;
+        lock_queue<T*>* conn_queue{nullptr};
         conv_multi<T>* parent{nullptr};
         safe_queue<int>* close_queue{nullptr};
 #define CONNECTS_REMOVE_FD_REACTOR do                   \
@@ -72,12 +74,10 @@ namespace hzd
             if(conn_pool)                               \
             {                                           \
                 conn_pool->release(tmp);                \
-                tmp = nullptr;                          \
             }                                           \
             else                                        \
             {                                           \
                 delete tmp;                             \
-                tmp = nullptr;                          \
             }                                           \
         }while(0)
 
@@ -89,12 +89,10 @@ namespace hzd
             if(conn_pool)                               \
             {                                           \
                 conn_pool->release(tmp);                \
-                tmp = nullptr;                          \
             }                                           \
             else                                        \
             {                                           \
                 delete tmp;                             \
-                tmp = nullptr;                          \
             }                                           \
         }while(0)
 
@@ -140,10 +138,11 @@ namespace hzd
             }
             close_queue = new safe_queue<int>(20);
             conn_pool = parent->conn_pool;
+            conn_queue = new lock_queue<T*>;
         }
         void add_conn(T* t)
         {
-            conn_queue.push_back(t);
+            conn_queue->push(t);
         }
         void work(int time_out=0)
         {
@@ -151,27 +150,16 @@ namespace hzd
             T* t;
             while(run)
             {
-//                for(auto it = connects.begin();it != connects.end();)
-//                {
-//                    if(it->second->status == conn::CLOSE)
-//                    {
-//                        CONNECTS_REMOVE_FD_REACTOR_OUT;
-//                    }
-//                    else
-//                    {
-//                        it++;
-//                    }
-//                }
                 while(!close_queue->empty())
                 {
                     close_queue->pop(cur_fd);
                     if(cur_fd == -1) continue;
+                    if(connects[cur_fd] == nullptr) continue;
                     CONNECTS_REMOVE_FD_REACTOR;
                 }
-                while(!conn_queue.empty())
+                while(!conn_queue->empty())
                 {
-                    t = conn_queue.front();
-                    conn_queue.pop_front();
+                    conn_queue->pop(t);
                     t->init(epoll_fd,ET,one_shot,close_queue);
                     if(connects[t->fd()]!=nullptr)
                     {

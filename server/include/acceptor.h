@@ -159,7 +159,9 @@ namespace hzd
             }
             parent->current_connect_count++;
             t->init(fd,&client_addr);
-            parent->reactors[parent->current_connect_count%parent->reactors.size()].add_conn(t);
+            static size_t count = 0;
+            parent->reactors[count%parent->reactors.size()].add_conn(t);
+            count++;
         }
 
     protected:
