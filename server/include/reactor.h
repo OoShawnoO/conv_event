@@ -144,7 +144,7 @@ namespace hzd
         {
             conn_queue->push(t);
         }
-        void work(int time_out=0)
+        void work(int time_out=5)
         {
             int ret,cur_fd;
             T* t;
@@ -156,6 +156,7 @@ namespace hzd
                     if(cur_fd == -1) continue;
                     if(connects[cur_fd] == nullptr) continue;
                     CONNECTS_REMOVE_FD_REACTOR;
+                    LOG(None,"关闭");
                 }
                 while(!conn_queue->empty())
                 {

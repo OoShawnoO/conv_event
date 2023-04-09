@@ -263,7 +263,7 @@ namespace hzd
             run = true;
             while(run)
             {
-                if((ret = epoll_wait(epoll_fd,event,1024,5)) >= 0)
+                if((ret = epoll_wait(epoll_fd,event,1024,-1)) >= 0)
                 {
                     for(int i=0;i<ret;i++)
                     {

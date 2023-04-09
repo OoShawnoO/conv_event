@@ -362,7 +362,7 @@ namespace hzd {
           * @param time_out epoll_wait's time out
           * @retval None
           */
-        void wait(int time_out = -1)
+        void wait(int time_out = 5)
         {
             _bind_();
             _prepare_epoll_event_();
