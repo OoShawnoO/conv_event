@@ -8,6 +8,7 @@
 #include <sys/uio.h>
 #include <sys/mman.h>
 #include <exception>
+#include <sys/sendfile.h>
 
 namespace hzd {
     enum http_Methods {  GET, POST, PUT, PATCH, DELETE, TRACE, HEAD, OPTIONS, CONNECT    };
@@ -461,51 +462,30 @@ namespace hzd {
         struct response_body
         {
             std::string file_name;
-            char* file_address{nullptr};
+            int file_fd;
             struct stat file_stat{};
         } res_body;
-        iovec iov[2]{{nullptr,0},{nullptr,0}};
 
         bool http_send()
         {
-            size_t count = 0;
             while(write_cursor < write_total_bytes)
             {
-                count = writev(socket_fd,iov,2);
-                if(count <= 0)
+                off_t offset = (off_t)write_cursor;
+                size_t send_count = sendfile(socket_fd,res_body.file_fd,&offset,write_total_bytes-write_cursor);
+                if(send_count == -1)
                 {
                     if(errno == EAGAIN)
                     {
                         next(EPOLLOUT);
                         return false;
                     }
-                    munmap(res_body.file_address,res_body.file_stat.st_size);
-                    iov[0].iov_base = nullptr;
-                    iov[0].iov_len = 0;
-                    iov[1].iov_base = nullptr;
-                    iov[1].iov_len = 0;
                     notify_close();
                     return true;
                 }
-                write_cursor += count;
-                if(write_cursor >= iov[0].iov_len)
-                {
-                    iov[0].iov_len = 0;
-                    iov[1].iov_base = res_body.file_address + write_cursor - res_header.header_text.size();
-                    iov[1].iov_len = write_total_bytes - write_cursor;
-                }
-                else
-                {
-                    iov[0].iov_base = (char*)res_header.header_text.c_str() + write_cursor;
-                    iov[0].iov_len = iov[0].iov_len - write_cursor;
-                }
+                write_cursor += send_count;
             }
+            ::close(res_body.file_fd);
             next(EPOLLIN);
-            munmap(res_body.file_address,res_body.file_stat.st_size);
-            iov[0].iov_base = nullptr;
-            iov[0].iov_len = 0;
-            iov[1].iov_base = nullptr;
-            iov[1].iov_len = 0;
             return true;
         }
 
@@ -555,7 +535,8 @@ namespace hzd {
         bool load_file()
         {
             res_header.response_headers["Content-Length"] = std::to_string(0);
-            if(stat(res_body.file_name.c_str(),&res_body.file_stat) < 0)
+            res_body.file_fd = open(res_body.file_name.c_str(),O_RDONLY);
+            if(fstat(res_body.file_fd,&res_body.file_stat) < 0)
             {
                 res_header.status = http_Status::Not_Found;
                 return false;
@@ -570,8 +551,7 @@ namespace hzd {
                 res_header.status = http_Status::Bad_Request;
                 return false;
             }
-            int fd = open(res_body.file_name.c_str(),O_RDONLY);
-            res_body.file_address = (char*)mmap(nullptr,res_body.file_stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
+
             res_header.response_headers["Content-Length"] = std::to_string(res_body.file_stat.st_size);
             size_t dot = res_body.file_name.find_last_of('.');
             if(dot == std::string::npos) res_header.response_headers["Content-Type"] = http_content_type_map["plain"];
@@ -608,12 +588,9 @@ namespace hzd {
                 res_body.file_name = base_path + req_header.url;
                 load_file();
                 res_header.header_text = res_header.to_string();
-                write_total_bytes = res_header.header_text.size() + res_body.file_stat.st_size;
+                send(res_header.header_text,res_header.header_text.size());
+                write_total_bytes = res_body.file_stat.st_size;
                 write_cursor = 0;
-                iov[0].iov_base = (char*)res_header.header_text.c_str();
-                iov[0].iov_len = res_header.header_text.size();
-                iov[1].iov_base = res_body.file_address;
-                iov[1].iov_len = res_body.file_stat.st_size;
             }
             already = http_send();
             return true;
