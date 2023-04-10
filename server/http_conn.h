@@ -417,17 +417,113 @@ namespace hzd {
     /* region http_content_type_map */
     std::unordered_map<std::string,std::string> http_content_type_map
             {
-                    {"txt","text/plain"},
-                    {"plain","text/plain"},
-                    {"html","text/html"},
-                    {"css","text/css"},
-                    {"js","text/javascript"},
-                    {"json","application/json"},
-                    {"xml","application/xml"},
-                    {"pdf","application/pdf"},
-                    {"jpeg","image/jpeg"},
-                    {"png","image/png"},
-                    {"gif","image/gif"}
+                    {"html", "text/html"},
+                    {"htm", "text/html"},
+                    {"shtml", "text/html"},
+                    {"css", "text/css"},
+                    {"xml", "text/xml"},
+                    {"gif", "image/gif"},
+                    {"jpeg", "image/jpeg"},
+                    {"jpg", "image/jpeg"},
+                    {"js", "application/javascript"},
+                    {"atom", "application/atom+xml"},
+                    {"rss", "application/rss+xml"},
+                    {"mml", "text/mathml"},
+                    {"txt", "text/plain"},
+                    {"jad", "text/vnd.sun.j2me.app-descriptor"},
+                    {"wml", "text/vnd.wap.wml"},
+                    {"htc", "text/x-component"},
+                    {"png", "image/png"},
+                    {"tif", "image/tiff"},
+                    {"tiff", "image/tiff"},
+                    {"wbmp", "image/vnd.wap.wbmp"},
+                    {"ico", "image/x-icon"},
+                    {"jng", "image/x-jng"},
+                    {"bmp", "image/x-ms-bmp"},
+                    {"svg", "image/svg+xml"},
+                    {"svgz", "image/svg+xml"},
+                    {"webp", "image/webp"},
+                    {"woff", "application/font-woff"},
+                    {"woff2","application/font-woff"},
+                    {"jar", "application/java-archive"},
+                    {"war", "application/java-archive"},
+                    {"ear", "application/java-archive"},
+                    {"json", "application/json"},
+                    {"hqx", "application/mac-binhex40"},
+                    {"doc", "application/msword"},
+                    {"pdf", "application/pdf"},
+                    {"ps", "application/postscript"},
+                    {"eps", "application/postscript"},
+                    {"ai", "application/postscript"},
+                    {"rtf", "application/rtf"},
+                    {"m3u8", "application/vnd.apple.mpegurl"},
+                    {"kml", "application/vnd.google-earth.kml+xml"},
+                    {"kmz", "application/vnd.google-earth.kmz"},
+                    {"xls", "application/vnd.ms-excel"},
+                    {"eot", "application/vnd.ms-fontobject"},
+                    {"ppt", "application/vnd.ms-powerpoint"},
+                    {"odg", "application/vnd.oasis.opendocument.graphics"},
+                    {"odp", "application/vnd.oasis.opendocument.presentation"},
+                    {"ods", "application/vnd.oasis.opendocument.spreadsheet"},
+                    {"odt", "application/vnd.oasis.opendocument.text"},
+                    {"pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+                    {"xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+                    {"docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+                    {"wmlc", "application/vnd.wap.wmlc"},
+                    {"7z", "application/x-7z-compressed"},
+                    {"cco", "application/x-cocoa"},
+                    {"jardiff", "application/x-java-archive-diff"},
+                    {"jnlp", "application/x-java-jnlp-file"},
+                    {"run", "application/x-makeself"},
+                    {"pl", "application/x-perl"},
+                    {"pm", "application/x-perl"},
+                    {"prc", "application/x-pilot"},
+                    {"pdb", "application/x-pilot"},
+                    {"rar", "application/x-rar-compressed"},
+                    {"rpm", "application/x-redhat-package-manager"},
+                    {"sea", "application/x-sea"},
+                    {"sit", "application/x-stuffit"},
+                    {"tcl", "application/x-tcl"},
+                    {"tk", "application/x-tcl"},
+                    {"der", "application/x-x509-ca-cert"},
+                    {"pem", "application/x-x509-ca-cert"},
+                    {"crt", "application/x-x509-ca-cert"},
+                    {"xpi", "application/x-xpinstall"},
+                    {"xhtml", "application/xhtml+xml"},
+                    {"xspf", "application/xspf+xml"},
+                    {"zip", "application/zip"},
+                    {"bin", "application/octet-stream"},
+                    {"exe", "application/octet-stream"},
+                    {"dll", "application/octet-stream"},
+                    {"deb", "application/octet-stream"},
+                    {"dmg", "application/octet-stream"},
+                    {"iso", "application/octet-stream"},
+                    {"img", "application/octet-stream"},
+                    {"msi", "application/octet-stream"},
+                    {"msp", "application/octet-stream"},
+                    {"msm", "application/octet-stream"},
+                    {"mid", "audio/midi"},
+                    {"midi", "audio/midi"},
+                    {"kar", "audio/midi"},
+                    {"mp3", "audio/mpeg"},
+                    {"ogg", "audio/ogg"},
+                    {"m4a", "audio/x-m4a"},
+                    {"ra", "audio/x-realaudio"},
+                    {"3gpp", "video/3gpp"},
+                    {"3gp", "video/3gpp"},
+                    {"ts", "video/mp2t"},
+                    {"mp4", "video/mp4"},
+                    {"mpeg", "video/mpeg"},
+                    {"mpg", "video/mpeg"},
+                    {"mov", "video/quicktime"},
+                    {"webm", "video/webm"},
+                    {"flv", "video/x-flv"},
+                    {"m4v", "video/x-m4v"},
+                    {"mng", "video/x-mng"},
+                    {"asx", "video/x-ms-asf"},
+                    {"asf", "video/x-ms-asf"},
+                    {"wmv", "video/x-ms-wmv"},
+                    {"avi", "video/x-msvideo"},
             };
     /* endregion */
     class http_conn : public conn {
@@ -438,6 +534,11 @@ namespace hzd {
             std::string url;
             http_Version version;
             std::unordered_map<std::string,std::string> request_headers;
+            void clear()
+            {
+                url.clear();
+                request_headers.clear();
+            }
         } req_header;
 
         struct response_header
@@ -457,6 +558,11 @@ namespace hzd {
                 buffer << "\r\n";
                 return buffer.str();
             }
+            void clear()
+            {
+                response_headers.clear();
+                header_text.clear();
+            }
         } res_header;
 
         struct response_body
@@ -464,23 +570,28 @@ namespace hzd {
             std::string file_name;
             int file_fd;
             struct stat file_stat{};
+            void clear()
+            {
+                file_name.clear();
+                file_stat = {};
+                file_fd = -1;
+            }
         } res_body;
 
         bool http_send()
         {
+            signal(SIGPIPE,SIG_IGN);
             while(write_cursor < write_total_bytes)
             {
-                off_t offset = (off_t)write_cursor;
+                auto offset = (off_t)write_cursor;
                 size_t send_count = sendfile(socket_fd,res_body.file_fd,&offset,write_total_bytes-write_cursor);
                 if(send_count == -1)
                 {
                     if(errno == EAGAIN)
                     {
-                        next(EPOLLOUT);
                         return false;
                     }
-                    notify_close();
-                    return true;
+                    return false;
                 }
                 write_cursor += send_count;
             }
@@ -534,6 +645,7 @@ namespace hzd {
         }
         bool load_file()
         {
+            std::cout << res_body.file_name <<std::endl;
             res_header.response_headers["Content-Length"] = std::to_string(0);
             res_body.file_fd = open(res_body.file_name.c_str(),O_RDONLY);
             if(fstat(res_body.file_fd,&res_body.file_stat) < 0)
@@ -556,19 +668,27 @@ namespace hzd {
             size_t dot = res_body.file_name.find_last_of('.');
             if(dot == std::string::npos) res_header.response_headers["Content-Type"] = http_content_type_map["plain"];
             std::string t = res_body.file_name.substr(dot+1);
-            res_header.response_headers["Content-Type"] = http_content_type_map.at(t);
+            try{
+                res_header.response_headers["Content-Type"] = http_content_type_map.at(t);
+            }
+            catch (...)
+            {
+                res_header.response_headers["Content-Type"] = "application/octet-stream";
+            }
             res_header.status = http_Status::OK;
             return true;
         }
 
         bool process_in() override
         {
+            req_header.clear();
             std::string data;
             if(!recv_all(data))
             {
                 notify_close();
                 return false;
             }
+            if(data == "") { next(EPOLLIN); return true; }
             size_t divide = data.find("\r\n\r\n");
             std::string header = data.substr(0,divide + 2);
             if(!parse_header(header))
@@ -581,18 +701,26 @@ namespace hzd {
         }
         bool process_out() override
         {
-            signal(SIGPIPE,SIG_IGN);
-            if(already)
+            res_header.clear();
+            res_body.clear();
+            res_header.version = req_header.version;
+            res_body.file_name = base_path + req_header.url;
+            load_file();
+            res_header.header_text = res_header.to_string();
+            while(!send(res_header.header_text,res_header.header_text.size()))
             {
-                res_header.version = req_header.version;
-                res_body.file_name = base_path + req_header.url;
-                load_file();
-                res_header.header_text = res_header.to_string();
-                send(res_header.header_text,res_header.header_text.size());
-                write_total_bytes = res_body.file_stat.st_size;
-                write_cursor = 0;
+                if(errno == EAGAIN) continue;
+                notify_close();
+                return false;
             }
-            already = http_send();
+            write_total_bytes = res_body.file_stat.st_size;
+            write_cursor = 0;
+            while(!http_send())
+            {
+                if(errno == EAGAIN) continue;
+                notify_close();
+                return false;
+            }
             return true;
         }
     };

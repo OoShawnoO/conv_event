@@ -232,8 +232,13 @@ namespace hzd {
         */
         bool recv_all(std::string& data)
         {
-            read_total_bytes = SIZE_MAX;
-            return recv_base(data);
+            if(already)
+            {
+                read_total_bytes = SIZE_MAX;
+                read_cursor = 0;
+            }
+            already = recv_base(data);
+            return already;
         }
     };
 
