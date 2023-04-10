@@ -97,10 +97,10 @@ namespace hzd
         }while(0)
 
     public:
-        static void work(void* r)
+        static void work(void* r,int time_out)
         {
             auto* reac = (reactor<T>*)r;
-            reac->work();
+            reac->work(time_out);
         }
         static bool run;
         static void set_run_false()
@@ -156,7 +156,6 @@ namespace hzd
                     if(cur_fd == -1) continue;
                     if(connects[cur_fd] == nullptr) continue;
                     CONNECTS_REMOVE_FD_REACTOR;
-                    LOG(None,"关闭");
                 }
                 while(!conn_queue->empty())
                 {
@@ -178,6 +177,7 @@ namespace hzd
                 }
                 else if(ret < 0)
                 {
+                    if(errno == EINTR) { continue; }
                     LOG(Epoll_Wait,"epoll wait error");
                     break;
                 }

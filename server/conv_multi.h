@@ -183,15 +183,15 @@ namespace hzd
           */
         void set_listen_queue_count(int size){if(size >= 0) _acceptor.set_listen_queue_count(size);}
 
-        void wait(int time_out=-1)
+        void wait(int time_out=5)
         {
             if(conn_pool) _acceptor.set_conn_pool(conn_pool);
             reactor<T>::set_run_true();
             for(auto& r : reactors)
             {
                 r.init(this);
-                using func = void(*)(void*);
-                std::thread t(static_cast<func>(&reactor<T>::work),(void*)&r);
+                using func = void(*)(void*,int);
+                std::thread t(static_cast<func>(reactor<T>::work),(void*)&r,time_out);
                 t.detach();
             }
             _acceptor.work();

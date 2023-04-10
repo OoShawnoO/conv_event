@@ -272,6 +272,7 @@ namespace hzd
                 }
                 else
                 {
+                    if(errno == EINTR) continue;
                     break;
                 }
             }

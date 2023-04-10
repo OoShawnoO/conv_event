@@ -19,13 +19,15 @@ namespace hzd {
         bool send_base(const char* data)
         {
             size_t send_count;
-            write_cursor = 0;
+            size_t need_to_send;
+
             while(write_cursor < write_total_bytes)
             {
                 bzero(write_buffer,sizeof(write_buffer));
-                memcpy(write_buffer,data+write_cursor,sizeof(write_buffer));
+                need_to_send = write_total_bytes-write_cursor;
+                memcpy(write_buffer,data+write_cursor,need_to_send > sizeof(write_buffer) ? sizeof(write_buffer):need_to_send);
                 if((send_count = ::send(socket_fd,write_buffer,
-                                        (write_total_bytes-write_cursor) > sizeof(write_buffer) ? sizeof(write_buffer) : (write_total_bytes-write_cursor)
+                                        need_to_send > sizeof(write_buffer) ? sizeof(write_buffer) : need_to_send
                                         ,MSG_NOSIGNAL))<= 0)
                 {
                     LOG(Conn_Send,"data send error");
@@ -49,8 +51,6 @@ namespace hzd {
                 return false;
             }
             size_t read_count;
-            read_cursor = 0;
-            data.clear();
             while(read_cursor < read_total_bytes)
             {
                 bzero(read_buffer,sizeof(read_buffer));
@@ -90,7 +90,7 @@ namespace hzd {
         size_t write_total_bytes{0};
         size_t read_total_bytes{0};
         int socket_fd{-1};
-
+        bool already{true};
         /**
          * @brief send data by using hzd::header
          * @note None
@@ -100,19 +100,24 @@ namespace hzd {
          */
         bool send_with_header(const char* data)
         {
-            write_total_bytes = strlen(data) + 1;
-            if(write_total_bytes <= 1)
+            if(already)
             {
-                LOG(Conn_Send,"send data = null");
-                return false;
+                write_total_bytes = strlen(data) + 1;
+                write_cursor = 0;
+                if(write_total_bytes <= 1)
+                {
+                    LOG(Conn_Send,"send data = null");
+                    return false;
+                }
+                header h{write_total_bytes};
+                if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
+                {
+                    LOG(Conn_Send,"header send error");
+                    return false;
+                }
             }
-            header h{write_total_bytes};
-            if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
-            {
-                LOG(Conn_Send,"header send error");
-                return false;
-            }
-            return send_base(data);
+            already = send_base(data);
+            return already;
         }
         /**
           * @brief send data by using hzd::header
@@ -123,19 +128,24 @@ namespace hzd {
           */
         bool send_with_header(std::string& data)
         {
-            write_total_bytes = data.size()+1;
-            if(write_total_bytes <= 1)
+            if(already)
             {
-                LOG(Conn_Send,"send data = null");
-                return false;
+                write_total_bytes = data.size()+1;
+                write_cursor = 0;
+                if(write_total_bytes <= 1)
+                {
+                    LOG(Conn_Send,"send data = null");
+                    return false;
+                }
+                header h{write_total_bytes};
+                if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
+                {
+                    LOG(Conn_Send,"header send error");
+                    return false;
+                }
             }
-            header h{write_total_bytes};
-            if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
-            {
-                LOG(Conn_Send,"header send error");
-                return false;
-            }
-            return send_base(data.c_str());
+            already = send_base(data.c_str());
+            return already;
         }
         /**
           * @brief send data by given length of data
@@ -146,13 +156,33 @@ namespace hzd {
           */
         bool send(std::string& data,size_t size)
         {
-            write_total_bytes = size;
-            if(write_total_bytes <= 0)
+            if(already)
             {
-                LOG(Conn_Send,"send data = null");
-                return false;
+                write_total_bytes = size;
+                write_cursor = 0;
+                if(write_total_bytes <= 0)
+                {
+                    LOG(Conn_Send,"send data = null");
+                    return false;
+                }
             }
-            return send_base(data.c_str());
+            already = send_base(data.c_str());
+            return already;
+        }
+        bool send(const char* data,size_t size)
+        {
+            if(already)
+            {
+                write_total_bytes = size;
+                write_cursor = 0;
+                if(write_total_bytes <= 0)
+                {
+                    LOG(Conn_Send,"send data = null");
+                    return false;
+                }
+            }
+            already = send_base(data);
+            return already;
         }
         /**
           * @brief recv data and output type
@@ -163,14 +193,19 @@ namespace hzd {
           */
         bool recv_with_header(std::string& data)
         {
-            header h{};
-            if(::recv(socket_fd,&h,HEADER_SIZE,0) <= 0)
+            if(already)
             {
-                LOG(Conn_Recv,"recv header error");
-                return false;
+                header h{};
+                if(::recv(socket_fd,&h,HEADER_SIZE,0) <= 0)
+                {
+                    LOG(Conn_Recv,"recv header error");
+                    return false;
+                }
+                read_total_bytes = h.size;
+                read_cursor = 0;
             }
-            read_total_bytes = h.size;
-            return recv_base(data);
+            already = recv_base(data);
+            return already;
         }
         /**
           * @brief recv data by given size
@@ -181,8 +216,13 @@ namespace hzd {
           */
         bool recv(std::string& data,size_t size)
         {
-            read_total_bytes = size;
-            return recv_base(data);
+            if(already)
+            {
+                read_total_bytes = size;
+                read_cursor = 0;
+            }
+            already = recv_base(data);
+            return already;
         }
         /**
         * @brief recv all data from system buffer
