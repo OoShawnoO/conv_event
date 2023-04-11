@@ -568,11 +568,13 @@ namespace hzd {
         struct response_body
         {
             std::string file_name;
+            std::string body_text;
             int file_fd;
             struct stat file_stat{};
             void clear()
             {
                 file_name.clear();
+                body_text.clear();
                 file_stat = {};
                 file_fd = -1;
             }
@@ -581,25 +583,33 @@ namespace hzd {
         bool http_send()
         {
             signal(SIGPIPE,SIG_IGN);
-            while(write_cursor < write_total_bytes)
+            if(res_body.file_fd != -1)
             {
-                auto offset = (off_t)write_cursor;
-                size_t send_count = sendfile(socket_fd,res_body.file_fd,&offset,write_total_bytes-write_cursor);
-                if(send_count == -1)
+                while(write_cursor < write_total_bytes)
                 {
-                    if(errno == EAGAIN)
+                    auto offset = (off_t)write_cursor;
+                    size_t send_count = sendfile(socket_fd,res_body.file_fd,&offset,write_total_bytes-write_cursor);
+                    if(send_count == -1)
                     {
+                        if(errno == EAGAIN)
+                        {
+                            return false;
+                        }
                         return false;
                     }
-                    return false;
+                    write_cursor += send_count;
                 }
-                write_cursor += send_count;
+                ::close(res_body.file_fd);
+                res_body.file_fd = -1;
+
             }
-            ::close(res_body.file_fd);
+            else
+            {
+                send(res_body.body_text,res_body.body_text.size());
+            }
             next(EPOLLIN);
             return true;
         }
-
         bool parse_header(std::string& data)
         {
             size_t request_line_pos = data.find("\r\n");
@@ -643,24 +653,34 @@ namespace hzd {
             }
             return true;
         }
+        inline void build_body_text()
+        {
+            std::ostringstream buffer;
+            buffer << "<h1> " << std::to_string((int32_t)res_header.status) << " " << http_status_map.at(res_header.status) << "</h1>";
+            res_body.body_text = buffer.str();
+        }
         bool load_file()
         {
-            std::cout << res_body.file_name <<std::endl;
-            res_header.response_headers["Content-Length"] = std::to_string(0);
             res_body.file_fd = open(res_body.file_name.c_str(),O_RDONLY);
             if(fstat(res_body.file_fd,&res_body.file_stat) < 0)
             {
                 res_header.status = http_Status::Not_Found;
+                build_body_text();
+                res_header.response_headers["Content-Length"] = std::to_string(res_body.body_text.size());
                 return false;
             }
             if(!(res_body.file_stat.st_mode & S_IROTH))
             {
                 res_header.status = http_Status::Forbidden;
+                build_body_text();
+                res_header.response_headers["Content-Length"] = std::to_string(res_body.body_text.size());
                 return false;
             }
             if(S_ISDIR(res_body.file_stat.st_mode))
             {
                 res_header.status = http_Status::Bad_Request;
+                build_body_text();
+                res_header.response_headers["Content-Length"] = std::to_string(res_body.body_text.size());
                 return false;
             }
 
@@ -678,17 +698,27 @@ namespace hzd {
             res_header.status = http_Status::OK;
             return true;
         }
+        inline void clear_in()
+        {
+            req_header.clear();
+        }
+        inline void clear_out()
+        {
+            res_header.clear();
+            res_body.clear();
+        }
 
         bool process_in() override
         {
-            req_header.clear();
+            clear_in();
+
             std::string data;
             if(!recv_all(data))
             {
                 notify_close();
                 return false;
             }
-            if(data == "") { next(EPOLLIN); return true; }
+            if(data.empty()) { next(EPOLLIN); return true; }
             size_t divide = data.find("\r\n\r\n");
             std::string header = data.substr(0,divide + 2);
             if(!parse_header(header))
@@ -701,8 +731,8 @@ namespace hzd {
         }
         bool process_out() override
         {
-            res_header.clear();
-            res_body.clear();
+            clear_out();
+
             res_header.version = req_header.version;
             res_body.file_name = base_path + req_header.url;
             load_file();
@@ -720,6 +750,10 @@ namespace hzd {
                 if(errno == EAGAIN) continue;
                 notify_close();
                 return false;
+            }
+            if(res_header.version == http_Version::HTTP_1_0)
+            {
+                notify_close();
             }
             return true;
         }
