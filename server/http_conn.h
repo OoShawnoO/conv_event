@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 #include <exception>
 #include <sys/sendfile.h>
+#include <functional>
 
 namespace hzd {
     enum http_Methods {  GET, POST, PUT, PATCH, DELETE, TRACE, HEAD, OPTIONS, CONNECT    };
@@ -533,7 +534,7 @@ namespace hzd {
             http_Methods method;
             std::string url;
             http_Version version;
-            std::unordered_map<std::string,std::string> request_headers;
+            std::unordered_map<std::string,std::vector<std::string>> request_headers;
             void clear()
             {
                 url.clear();
@@ -580,7 +581,7 @@ namespace hzd {
             }
         } res_body;
 
-        bool http_send()
+        bool send_response_body_base()
         {
             signal(SIGPIPE,SIG_IGN);
             if(res_body.file_fd != -1)
@@ -610,7 +611,7 @@ namespace hzd {
             next(EPOLLIN);
             return true;
         }
-        bool parse_header(std::string& data)
+        bool parse_header(const std::string& data)
         {
             size_t request_line_pos = data.find("\r\n");
             size_t p1 = data.find(' ');
@@ -639,17 +640,46 @@ namespace hzd {
                     return false;
                 }
             }
-
-            size_t position = request_line_pos + 2;
-            while(position < data.size())
+            std::stringstream ss(data.substr(request_line_pos + 2));
+            std::string line;
+            std::string last_header;
+            while(getline(ss,line))
             {
-                size_t eol = data.find("\r\n",position);
-                if(eol == std::string::npos) break;
-                size_t colon = data.find(':',position);
-                if(colon == std::string::npos || colon > eol) break;
-                req_header.request_headers.emplace(std::pair<std::string,std::string>(data.substr(position,colon-position),
-                                                                           data.substr(colon+1,eol-colon-1)));
-                position = eol + 2;
+                if(line.empty()) break;
+                line.erase(line.end()-1);
+                if(line[0] == ' ' || line[0] == '\t')
+                {
+                    if(!last_header.empty())
+                    {
+                        req_header.request_headers[last_header].back() += line;
+                    }
+                }
+                else
+                {
+                    auto pos = line.find(':');
+                    if(pos != std::string::npos)
+                    {
+                        std::string name = line.substr(0,pos);
+                        std::string value = line.substr(pos + 1);
+                        value.erase(0,value.find_first_not_of(" \t"));
+                        value.erase(value.find_last_not_of(" \t") + 1);
+                        std::vector<std::string> values;
+                        if(name == "User-Agent")
+                        {
+                            values.emplace_back(value);
+                            req_header.request_headers[name] = values;
+                            continue;
+                        }
+                        std::stringstream value_ss(value);
+                        std::string value_line;
+                        while(getline(value_ss,value_line,','))
+                        {
+                                values.emplace_back(value_line);
+                        }
+                        req_header.request_headers[name] = values;
+                        last_header = name;
+                    }
+                }
             }
             return true;
         }
@@ -658,6 +688,40 @@ namespace hzd {
             std::ostringstream buffer;
             buffer << "<h1> " << std::to_string((int32_t)res_header.status) << " " << http_status_map.at(res_header.status) << "</h1>";
             res_body.body_text = buffer.str();
+        }
+        inline bool send_response_header()
+        {
+            res_header.header_text = res_header.to_string();
+            while(!send(res_header.header_text,res_header.header_text.size()))
+            {
+                if(errno == EAGAIN) continue;
+                notify_close();
+                return false;
+            }
+            return true;
+        }
+        inline bool send_response_body()
+        {
+            while(!send_response_body_base())
+            {
+                if(errno == EAGAIN) continue;
+                notify_close();
+                return false;
+            }
+            return true;
+        }
+        inline bool method_not_allow()
+        {
+            res_header.status = http_Status::Method_Not_Allowed;
+            build_body_text();
+            res_header.response_headers["Content-Length"] = std::to_string(res_body.body_text.size());
+            if(!send_response_header()) { return false; };
+            if(!send_response_body()) { return false; }
+            if(res_header.version == http_Version::HTTP_1_0)
+            {
+                notify_close();
+            }
+            return true;
         }
         bool load_file()
         {
@@ -708,6 +772,61 @@ namespace hzd {
             res_body.clear();
         }
 
+        virtual bool process_get()
+        {
+            res_body.file_name = base_path + req_header.url;
+            load_file();
+            if(!send_response_header()) { return false; }
+            write_total_bytes = res_body.file_stat.st_size;
+            write_cursor = 0;
+            if(!send_response_body()) { return false; }
+            if(res_header.version == http_Version::HTTP_1_0)
+            {
+                notify_close();
+            }
+            return true;
+        }
+        virtual bool process_post()
+        {
+            method_not_allow();
+            return true;
+        }
+        virtual bool process_put()
+        {
+            method_not_allow();
+            return true;
+        }
+        virtual bool process_patch()
+        {
+            method_not_allow();
+            return true;
+        }
+        virtual bool process_delete()
+        {
+            method_not_allow();
+            return true;
+        }
+        virtual bool process_trace()
+        {
+            method_not_allow();
+            return true;
+        }
+        virtual bool process_head()
+        {
+            method_not_allow();
+            return true;
+        }
+        virtual bool process_options()
+        {
+            method_not_allow();
+            return true;
+        }
+        virtual bool process_connect()
+        {
+            method_not_allow();
+            return true;
+        }
+
         bool process_in() override
         {
             clear_in();
@@ -732,30 +851,37 @@ namespace hzd {
         bool process_out() override
         {
             clear_out();
-
             res_header.version = req_header.version;
-            res_body.file_name = base_path + req_header.url;
-            load_file();
-            res_header.header_text = res_header.to_string();
-            while(!send(res_header.header_text,res_header.header_text.size()))
+            switch(req_header.method)
             {
-                if(errno == EAGAIN) continue;
-                notify_close();
-                return false;
+                case GET : {
+                    return process_get();
+                }
+                case POST : {
+                    return process_post();
+                }
+                case PUT : {
+                    return process_put();
+                }
+                case PATCH : {
+                    return process_patch();
+                }
+                case DELETE : {
+                    return process_delete();
+                }
+                case TRACE : {
+                    return process_trace();
+                }
+                case HEAD : {
+                    return process_head();
+                }
+                case OPTIONS : {
+                    return process_options();
+                }
+                case CONNECT : {
+                    return process_connect();
+                }
             }
-            write_total_bytes = res_body.file_stat.st_size;
-            write_cursor = 0;
-            while(!http_send())
-            {
-                if(errno == EAGAIN) continue;
-                notify_close();
-                return false;
-            }
-            if(res_header.version == http_Version::HTTP_1_0)
-            {
-                notify_close();
-            }
-            return true;
         }
     };
     const std::string http_conn::base_path = "resource";
