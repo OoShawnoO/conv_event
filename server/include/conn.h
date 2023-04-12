@@ -148,8 +148,11 @@ namespace hzd {
         }
         /* thread safety */
         inline void notify_close() {
-            status = CLOSE;
-            if(close_queue) close_queue->push(socket_fd);
+            if(status != CLOSE)
+            {
+                status = CLOSE;
+                if(close_queue) close_queue->push(socket_fd);
+            }
         }
         /* common virtual member methods */
         virtual void init(int _socket_fd,sockaddr_in* _addr)

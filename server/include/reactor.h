@@ -69,7 +69,7 @@ namespace hzd
         {                                               \
             parent->current_connect_count--;            \
             T* tmp = connects[cur_fd];                  \
-            connects.erase(cur_fd);                     \
+            connects[cur_fd] = nullptr;                 \
             tmp->close();                               \
             if(conn_pool)                               \
             {                                           \
@@ -84,7 +84,8 @@ namespace hzd
 #define CONNECTS_REMOVE_FD_REACTOR_OUT do{              \
             parent->current_connect_count--;            \
             T* tmp = it->second;                        \
-            it = connects.erase(it);                    \
+            it->second = nullptr;                       \
+            it++;                                       \
             tmp->close();                               \
             if(conn_pool)                               \
             {                                           \
@@ -136,7 +137,7 @@ namespace hzd
                 if(!thread_pool)
                     thread_pool = new threadpool<T>;
             }
-            close_queue = new safe_queue<int>(20);
+            close_queue = new safe_queue<int>(1000);
             conn_pool = parent->conn_pool;
             conn_queue = new lock_queue<T*>;
         }

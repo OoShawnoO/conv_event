@@ -172,7 +172,8 @@ namespace hzd {
             current_connect_count--;                    \
             T* tmp = it->second;                        \
             tmp->close();                               \
-            it = connects.erase(it);                    \
+            it->second = nullptr;                       \
+            it++;                                       \
             if(conn_pool)                               \
             {                                           \
                 conn_pool->release(tmp);                \
