@@ -560,10 +560,7 @@ namespace hzd {
             res_header.status = http_Status::Temporary_Redirect;
             res_header.response_headers["Location"] = std::move(url);
             if(!send_response_header()) {return;}
-            if(res_header.version == http_Version::HTTP_1_0)
-            {
-                notify_close();
-            }
+            http_1_0_close();
         }
         void render(std::string file_path)
         {
@@ -573,10 +570,7 @@ namespace hzd {
             write_total_bytes = res_body.file_stat.st_size;
             write_cursor = 0;
             if(!send_response_body()) { return; }
-            if(res_header.version == http_Version::HTTP_1_0)
-            {
-                notify_close();
-            }
+            http_1_0_close();
         }
 
         static void register_router(router* r) {
@@ -800,10 +794,7 @@ namespace hzd {
             res_header.response_headers["Content-Length"] = std::to_string(res_body.body_text.size());
             if(!send_response_header()) { return false; };
             if(!send_response_body()) { return false; }
-            if(res_header.version == http_Version::HTTP_1_0)
-            {
-                notify_close();
-            }
+            http_1_0_close();
             return true;
         }
         bool load_file()
@@ -855,7 +846,13 @@ namespace hzd {
             res_header.clear();
             res_body.clear();
         }
-        inline 
+        inline void http_1_0_close()
+        {
+            if(res_header.version == http_Version::HTTP_1_0)
+            {
+                notify_close();
+            }
+        }
         
         virtual bool process_get()
         {
@@ -875,10 +872,7 @@ namespace hzd {
                 write_total_bytes = res_body.file_stat.st_size;
                 write_cursor = 0;
                 if(!send_response_body()) { return false; }
-                if(res_header.version == http_Version::HTTP_1_0)
-                {
-                    notify_close();
-                }
+                http_1_0_close();
                 return true;
             }
         }
