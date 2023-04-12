@@ -64,7 +64,7 @@ namespace hzd
         connpool<T>* conn_pool{nullptr};
         lock_queue<T*>* conn_queue{nullptr};
         conv_multi<T>* parent{nullptr};
-        safe_queue<int>* close_queue{nullptr};
+        lock_queue<int>* close_queue{nullptr};
 #define CONNECTS_REMOVE_FD_REACTOR do                   \
         {                                               \
             parent->current_connect_count--;            \
@@ -137,7 +137,7 @@ namespace hzd
                 if(!thread_pool)
                     thread_pool = new threadpool<T>;
             }
-            close_queue = new safe_queue<int>(1000);
+            close_queue = new lock_queue<int>();
             conn_pool = parent->conn_pool;
             conn_queue = new lock_queue<T*>;
         }

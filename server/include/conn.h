@@ -113,7 +113,7 @@ namespace hzd {
     protected:
         int epoll_fd{0};
         sockaddr_in sock_addr{};
-        safe_queue<int>* close_queue{nullptr};
+        lock_queue<int>* close_queue{nullptr};
     public:
         enum Status
         {
@@ -161,7 +161,7 @@ namespace hzd {
             socket_fd = _socket_fd;
             sock_addr = *_addr;
         }
-        virtual void init(int _epoll_fd,bool et,bool _one_shot,safe_queue<int>* cq)
+        virtual void init(int _epoll_fd,bool et,bool _one_shot,lock_queue<int>* cq)
         {
             status = OK;
             close_queue = cq;

@@ -375,6 +375,11 @@ namespace hzd {
             {
                 for(auto it = connects.begin();it != connects.end();)
                 {
+                    if(it->second == nullptr)
+                    {
+                        it++;
+                        continue;
+                    }
                     if(it->second->status == conn::CLOSE)
                     {
                         CONNECTS_REMOVE_FD_OUT;
