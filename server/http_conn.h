@@ -10,6 +10,7 @@
 #include <exception>
 #include <sys/sendfile.h>
 #include <functional>
+#include <utility>
 
 namespace hzd {
     enum http_Methods {  GET, POST, PUT, PATCH, DELETE, TRACE, HEAD, OPTIONS, CONNECT    };
@@ -556,13 +557,19 @@ namespace hzd {
             virtual bool method_options(http_conn*) { return true; }
             virtual bool method_connect(http_conn*) { return true; }
         };
-        void redirect(std::string& url)
+        void redirect(std::string url)
         {
-            
+            res_header.status = http_Status::Moved_Permanently;
+            res_header.response_headers["Location"] = std::move(url);
+            if(!send_response_header()) {return;}
+            if(res_header.version == http_Version::HTTP_1_0)
+            {
+                notify_close();
+            }
         }
         void render(std::string file_path)
         {
-            req_header.url = file_path;
+            req_header.url = std::move(file_path);
             load_file();
             if(!send_response_header()) { return; }
             write_total_bytes = res_body.file_stat.st_size;
@@ -745,7 +752,7 @@ namespace hzd {
             buffer << "<h1> " << std::to_string((int32_t)res_header.status) << " " << http_status_map.at(res_header.status) << "</h1>";
             res_body.body_text = buffer.str();
         }
-        inline bool send_response_header()
+        bool send_response_header()
         {
             res_header.header_text = res_header.to_string();
             while(!send(res_header.header_text,res_header.header_text.size()))
@@ -756,7 +763,7 @@ namespace hzd {
             }
             return true;
         }
-        inline bool send_response_body()
+        bool send_response_body()
         {
             while(!send_response_body_base())
             {
