@@ -530,19 +530,17 @@ namespace hzd {
     /* endregion */
     class http_conn : public conn {
     public:
+        #define ROUTER(r) r static_##r;
         class router
         {
             std::vector<http_Methods> _allow_;
         public:
             std::string url;
-            
-//            explicit router(std::string _url,std::vector<http_Methods> _allow) {
-//                url = std::move(_url);
-//                _allow_ = std::move(_allow);
-//            }
+
             explicit router(std::string&& _url,std::vector<http_Methods>&& _allow) {
                 url = std::move(_url);
                 _allow_ = std::move(_allow);
+                register_router(this);
             }
             inline bool allow(http_Methods m) {
                 return find(_allow_.begin(),_allow_.end(),m) != _allow_.end();
@@ -559,7 +557,7 @@ namespace hzd {
         };
         void redirect(std::string url)
         {
-            res_header.status = http_Status::Moved_Permanently;
+            res_header.status = http_Status::Temporary_Redirect;
             res_header.response_headers["Location"] = std::move(url);
             if(!send_response_header()) {return;}
             if(res_header.version == http_Version::HTTP_1_0)
@@ -597,6 +595,7 @@ namespace hzd {
             http_Methods method;
             std::string url;
             http_Version version;
+            std::unordered_map<std::string,std::string> parameters;
             std::unordered_map<std::string,std::vector<std::string>> request_headers;
             void clear()
             {
@@ -687,7 +686,28 @@ namespace hzd {
                     size_t p2 = data.find(' ',p1+1);
                     if(p2 != std::string::npos)
                     {
-                        req_header.url = data.substr(p1 + 1,p2 - p1 -1);
+                        std::string url = data.substr(p1 + 1,p2 - p1 -1);
+                        size_t start = url.find('?');
+                        if(start == std::string::npos)
+                        {
+                            req_header.url = url;
+                        }
+                        else
+                        {
+                            req_header.url = url.substr(0,start);
+                            start += 1;
+                            size_t end = start;
+                            while(end != std::string::npos)
+                            {
+                                end = url.find_first_of("&=",start);
+                                std::string key = url.substr(start,end-start);
+                                start = end + 1;
+                                end = url.find_first_of('&',start);
+                                std::string value = url.substr(start,end-start);
+                                req_header.parameters.emplace(std::move(key),std::move(value));
+                                start = end + 1;
+                            }
+                        }
                         std::string v = data.substr(p2+1,request_line_pos-p2-1);
                         if(v == "HTTP/1.0") req_header.version = HTTP_1_0;
                         else if(v == "HTTP/1.1") req_header.version = HTTP_1_1;

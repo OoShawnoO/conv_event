@@ -143,6 +143,7 @@ namespace hzd
             int fd = accept(socket_fd,(sockaddr*)&client_addr,&len);
             if(fd < 0)
             {
+                if(errno == EAGAIN || errno == EWOULDBLOCK) return;
                 LOG(Socket_Accept,"socket accept error");
                 return;
             }
