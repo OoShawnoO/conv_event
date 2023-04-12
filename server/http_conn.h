@@ -528,7 +528,63 @@ namespace hzd {
             };
     /* endregion */
     class http_conn : public conn {
+    public:
+        class router
+        {
+            std::vector<http_Methods> _allow_;
+        public:
+            std::string url;
+            
+//            explicit router(std::string _url,std::vector<http_Methods> _allow) {
+//                url = std::move(_url);
+//                _allow_ = std::move(_allow);
+//            }
+            explicit router(std::string&& _url,std::vector<http_Methods>&& _allow) {
+                url = std::move(_url);
+                _allow_ = std::move(_allow);
+            }
+            inline bool allow(http_Methods m) {
+                return find(_allow_.begin(),_allow_.end(),m) != _allow_.end();
+            }
+            virtual bool method_get(http_conn*) { return true; }
+            virtual bool method_post(http_conn*) { return true; }
+            virtual bool method_put(http_conn*) { return true; }
+            virtual bool method_patch(http_conn*) { return true; }
+            virtual bool method_delete(http_conn*) { return true; }
+            virtual bool method_trace(http_conn*) { return true; }
+            virtual bool method_head(http_conn*) { return true; }
+            virtual bool method_options(http_conn*) { return true; }
+            virtual bool method_connect(http_conn*) { return true; }
+        };
+        void redirect(std::string& url)
+        {
+            
+        }
+        void render(std::string file_path)
+        {
+            req_header.url = file_path;
+            load_file();
+            if(!send_response_header()) { return; }
+            write_total_bytes = res_body.file_stat.st_size;
+            write_cursor = 0;
+            if(!send_response_body()) { return; }
+            if(res_header.version == http_Version::HTTP_1_0)
+            {
+                notify_close();
+            }
+        }
+
+        static void register_router(router* r) {
+            if(!r) return;
+            routers[r->url] = r;
+        }
+
+    private:
+
         const static std::string base_path;
+        
+        static std::unordered_map<std::string,router*> routers;
+
         struct request_header
         {
             http_Methods method;
@@ -725,6 +781,7 @@ namespace hzd {
         }
         bool load_file()
         {
+            res_body.file_name = base_path + req_header.url;
             res_body.file_fd = open(res_body.file_name.c_str(),O_RDONLY);
             if(fstat(res_body.file_fd,&res_body.file_stat) < 0)
             {
@@ -771,60 +828,168 @@ namespace hzd {
             res_header.clear();
             res_body.clear();
         }
-
+        inline 
+        
         virtual bool process_get()
         {
-            res_body.file_name = base_path + req_header.url;
-            load_file();
-            if(!send_response_header()) { return false; }
-            write_total_bytes = res_body.file_stat.st_size;
-            write_cursor = 0;
-            if(!send_response_body()) { return false; }
-            if(res_header.version == http_Version::HTTP_1_0)
+            try
             {
-                notify_close();
+                auto r = routers.at(req_header.url);
+                if(!r->allow(req_header.method))
+                {
+                    throw std::exception();
+                }
+                return r->method_get(this);
             }
-            return true;
+            catch(...)
+            {
+                load_file();
+                if(!send_response_header()) { return false; }
+                write_total_bytes = res_body.file_stat.st_size;
+                write_cursor = 0;
+                if(!send_response_body()) { return false; }
+                if(res_header.version == http_Version::HTTP_1_0)
+                {
+                    notify_close();
+                }
+                return true;
+            }
         }
         virtual bool process_post()
         {
-            method_not_allow();
-            return true;
+            try
+            {
+                auto r = routers.at(req_header.url);
+                if(!r->allow(req_header.method))
+                {
+                    throw std::exception();
+                }
+                return r->method_post(this);
+            }
+            catch(...) 
+            {
+                method_not_allow();
+                return true;
+            }
         }
         virtual bool process_put()
         {
-            method_not_allow();
-            return true;
+            try
+            {
+                auto r = routers.at(req_header.url);
+                if(!r->allow(req_header.method))
+                {
+                    throw std::exception();
+                }
+                return r->method_put(this);
+            }
+            catch(...) 
+            {
+                method_not_allow();
+                return true;
+            }
         }
         virtual bool process_patch()
         {
-            method_not_allow();
-            return true;
+            try
+            {
+                auto r = routers.at(req_header.url);
+                if(!r->allow(req_header.method))
+                {
+                    throw std::exception();
+                }
+                return r->method_patch(this);
+            }
+            catch(...)
+            {
+                method_not_allow();
+                return true;
+            }
         }
         virtual bool process_delete()
         {
-            method_not_allow();
-            return true;
+            try
+            {
+                auto r = routers.at(req_header.url);
+                if(!r->allow(req_header.method))
+                {
+                    throw std::exception();
+                }
+                return r->method_delete(this);
+            }
+            catch(...)
+            {
+                method_not_allow();
+                return true;
+            }
         }
         virtual bool process_trace()
         {
-            method_not_allow();
-            return true;
+            try
+            {
+                auto r = routers.at(req_header.url);
+                if(!r->allow(req_header.method))
+                {
+                    throw std::exception();
+                }
+                return r->method_trace(this);
+            }
+            catch(...)
+            {
+                method_not_allow();
+                return true;
+            }
         }
         virtual bool process_head()
         {
-            method_not_allow();
-            return true;
+            try
+            {
+                auto r = routers.at(req_header.url);
+                if(!r->allow(req_header.method))
+                {
+                    throw std::exception();
+                }
+                return r->method_head(this);
+            }
+            catch(...)
+            {
+                method_not_allow();
+                return true;
+            }
         }
         virtual bool process_options()
         {
-            method_not_allow();
-            return true;
+            try
+            {
+                auto r = routers.at(req_header.url);
+                if(!r->allow(req_header.method))
+                {
+                    throw std::exception();
+                }
+                return r->method_options(this);
+            }
+            catch(...)
+            {
+                method_not_allow();
+                return true;
+            }
         }
         virtual bool process_connect()
         {
-            method_not_allow();
-            return true;
+            try
+            {
+                auto r = routers.at(req_header.url);
+                if(!r->allow(req_header.method))
+                {
+                    throw std::exception();
+                }
+                return r->method_connect(this);
+            }
+            catch(...)
+            {
+                method_not_allow();
+                return true;
+            }
         }
 
         bool process_in() override
@@ -884,7 +1049,9 @@ namespace hzd {
             }
         }
     };
+    using router = http_conn::router;
     const std::string http_conn::base_path = "resource";
+    std::unordered_map<std::string,router*> http_conn::routers;
 }
 
 #endif
