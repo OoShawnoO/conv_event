@@ -113,7 +113,7 @@ namespace hzd
         inline void _prepare_epoll_event_()
         {
             if(!event)
-                event = new epoll_event[1024];
+                event = new epoll_event[4096];
             if(!event)
             {
                 LOG(Bad_Malloc,"epoll_event bad new");
@@ -264,7 +264,7 @@ namespace hzd
             run = true;
             while(run)
             {
-                if((ret = epoll_wait(epoll_fd,event,1024,-1)) >= 0)
+                if((ret = epoll_wait(epoll_fd,event,4096,-1)) >= 0)
                 {
                     for(int i=0;i<ret;i++)
                     {

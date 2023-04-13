@@ -652,6 +652,8 @@ namespace hzd {
                         {
                             return false;
                         }
+                        ::close(res_body.file_fd);
+                        res_body.file_fd = -1;
                         return false;
                     }
                     write_cursor += send_count;
@@ -774,6 +776,8 @@ namespace hzd {
             while(!send(res_header.header_text,res_header.header_text.size()))
             {
                 if(errno == EAGAIN) continue;
+                ::close(res_body.file_fd);
+                res_body.file_fd = -1;
                 notify_close();
                 return false;
             }
