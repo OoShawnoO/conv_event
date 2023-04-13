@@ -58,7 +58,7 @@ namespace hzd
         bool one_shot{true};
         int epoll_fd{-1};
         epoll_event* events{nullptr};
-        int max_events_count{1024};
+        int max_events_count{4096};
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool{nullptr};
         connpool<T>* conn_pool{nullptr};
@@ -145,7 +145,7 @@ namespace hzd
         {
             conn_queue->push(t);
         }
-        void work(int time_out=5)
+        void work(int time_out=1)
         {
             int ret,cur_fd;
             T* t;

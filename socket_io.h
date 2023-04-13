@@ -73,7 +73,7 @@ namespace hzd {
                         {
                             return true;
                         }
-                        LOG(Conn_Recv,"client close");
+//                        LOG(Conn_Recv,"client close");
                         return false;
                     }
                 }

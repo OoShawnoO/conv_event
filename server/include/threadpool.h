@@ -53,7 +53,7 @@ namespace hzd
         #endif
         bool stop{false};
     public:
-        explicit threadpool(int _thread_count = 8,int _max_process_count = 10000)
+        explicit threadpool(int _thread_count = 8,int _max_process_count =40000)
         : thread_count(_thread_count),max_process_count(_max_process_count)
         {
             if(thread_count <= 0 || max_process_count <= 0)
