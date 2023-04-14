@@ -160,9 +160,9 @@ namespace hzd
             }
             parent->current_connect_count++;
             t->init(fd,&client_addr);
-            static size_t count = 0;
-            parent->reactors[count%parent->reactors.size()].add_conn(t);
-            count++;
+            static int count = 0;
+            parent->reactors[count].add_conn(t);
+            count = (count+1)%parent->reactors.size();
         }
 
     protected:
@@ -170,7 +170,7 @@ namespace hzd
         short port{};
         int socket_fd{-1};
         sockaddr_in my_addr{};
-        int listen_queue_count{32};
+        int listen_queue_count{1024};
         int epoll_fd{-1};
         epoll_event* event{nullptr};
         conv_multi<T>* parent{nullptr};

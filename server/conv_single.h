@@ -127,15 +127,16 @@ namespace hzd {
         short port;
         int socket_fd{-1};
         sockaddr_in my_addr{};
-        int listen_queue_count{32};
+        int listen_queue_count{1024};
         int epoll_fd{-1};
         epoll_event* events{nullptr};
-        int max_events_count{1024};
+        int max_events_count{4096};
         int max_connect_count{200000};
         int current_connect_count{0};
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool{nullptr};
         connpool<T>* conn_pool{nullptr};
+        lock_queue<int>* close_queue{nullptr};
     public:
         /* Constructor */
         conv_single(std::string _ip,short _port,bool _one_shot = false,bool ET = false)
@@ -144,6 +145,7 @@ namespace hzd {
             _create_socket_();
             _prepare_socket_address_();
             signal(SIGPIPE,SIG_IGN);
+            close_queue = new lock_queue<int>;
         }
         /* Destructor */
         virtual ~conv_single()
@@ -214,6 +216,8 @@ namespace hzd {
             thread_pool = nullptr;
             delete conn_pool;
             conn_pool = nullptr;
+            delete close_queue;
+            close_queue = nullptr;
         }
         /**
           * @brief enable address reuse
@@ -373,21 +377,12 @@ namespace hzd {
             int cur_fd;
             while(true)
             {
-                for(auto it = connects.begin();it != connects.end();)
+                while(!close_queue->empty())
                 {
-                    if(it->second == nullptr)
-                    {
-                        it++;
-                        continue;
-                    }
-                    if(it->second->status == conn::CLOSE)
-                    {
-                        CONNECTS_REMOVE_FD_OUT;
-                    }
-                    else
-                    {
-                        it++;
-                    }
+                    close_queue->pop(cur_fd);
+                    if(cur_fd == -1) continue;
+                    if(connects[cur_fd] == nullptr) continue;
+                    CONNECTS_REMOVE_FD;
                 }
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) < 0)
                 {
@@ -429,7 +424,7 @@ namespace hzd {
                             }
                             connects[client_fd] = new T;
                         }
-                        connects[client_fd]->init(client_fd, &client_addr,epoll_fd,ET,one_shot);
+                        connects[client_fd]->init(client_fd, &client_addr,epoll_fd,ET,one_shot,close_queue);
                         current_connect_count++;
                     }
                     else if(events[event_index].events & EPOLLRDHUP)

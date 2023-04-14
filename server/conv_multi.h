@@ -30,6 +30,7 @@ namespace hzd
             reactors.resize(reactor_count);
             reactor<T>::set_run_true();
             _acceptor.init(this);
+            signal(SIGPIPE,SIG_IGN);
         };
         virtual ~conv_multi()
         {

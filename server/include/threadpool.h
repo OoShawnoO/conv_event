@@ -44,7 +44,7 @@ namespace hzd
     private:
         int thread_count;
         int max_process_count;
-        safe_queue<T*> process_pool;
+        lock_queue<T*> process_pool;
         std::thread* threads;
         #if __cplusplus > 201703L
         std::counting_semaphore<0> sem{0};

@@ -161,13 +161,23 @@ namespace hzd
                 while(!conn_queue->empty())
                 {
                     conn_queue->pop(t);
-                    t->init(epoll_fd,ET,one_shot,close_queue);
                     if(connects[t->fd()]!=nullptr)
                     {
                         LOG(Pointer_To_Null,"already exist");
+                        if(conn_pool)
+                        {
+                            conn_pool->release(t);
+                            t = nullptr;
+                        }
+                        else
+                        {
+                            delete t;
+                            t = nullptr;
+                        }
                     }
                     else
                     {
+                        t->init(epoll_fd,ET,one_shot,close_queue);
                         connects[t->fd()] = t;
                     }
                 }
