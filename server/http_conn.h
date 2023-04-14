@@ -1074,6 +1074,7 @@ namespace hzd {
                     return process_connect();
                 }
             }
+            return false;
         }
     };
     using router = http_conn::router;

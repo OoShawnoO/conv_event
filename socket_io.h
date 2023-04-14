@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstring>
 #include <sys/socket.h>
-#include "ErrorLog/ErrorLog.h"
+#include "server/include/ErrorLog/ErrorLog.h"
 #include "utils.h"
 
 namespace hzd {
