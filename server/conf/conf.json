@@ -1,0 +1,17 @@
+{
+    "ip" : "0.0.0.0",
+    "port" : 9999,
+    "resource_path" : "resource",
+    "multi_thread" : true,
+    "thread_count" : 8,
+    "max_connect_count" : 200000,
+    "max_events_count" : 4096,
+    "listen_queue_count" : 2048,
+    "object_pool" : true,
+    "object_pool_size" : 1024,
+    "reactor_count" : 4,
+    "one_shot" : true,
+    "et" : false,
+    "port_reuse" : true,
+    "address_reuse" : true
+}

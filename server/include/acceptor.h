@@ -2,6 +2,7 @@
 #define USE_CONV_ACCEPTOR_H
 
 #include "conn.h"   /* conn */
+#include "configure.h"
 
 namespace hzd
 {
@@ -113,7 +114,7 @@ namespace hzd
         inline void _prepare_epoll_event_()
         {
             if(!event)
-                event = new epoll_event[4096];
+                event = new epoll_event[max_event_count];
             if(!event)
             {
                 LOG(Bad_Malloc,"epoll_event bad new");
@@ -172,6 +173,7 @@ namespace hzd
         sockaddr_in my_addr{};
         int listen_queue_count{1024};
         int epoll_fd{-1};
+        int max_event_count{4096};
         epoll_event* event{nullptr};
         conv_multi<T>* parent{nullptr};
         connpool<T>* conn_pool{nullptr};
@@ -248,6 +250,11 @@ namespace hzd
             conn_pool = parent->conn_pool;
             ip = parent->ip;
             port = parent->port;
+
+            configure& conf = configure::get_config();
+            listen_queue_count = conf.configs["listen_queue_count"];
+            max_event_count = conf.configs["max_events_count"];
+
             _create_socket_();
             _prepare_socket_address_();
         }
@@ -264,7 +271,7 @@ namespace hzd
             run = true;
             while(run)
             {
-                if((ret = epoll_wait(epoll_fd,event,4096,-1)) >= 0)
+                if((ret = epoll_wait(epoll_fd,event,max_event_count,-1)) >= 0)
                 {
                     for(int i=0;i<ret;i++)
                     {

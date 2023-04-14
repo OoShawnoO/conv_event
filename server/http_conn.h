@@ -1077,7 +1077,7 @@ namespace hzd {
         }
     };
     using router = http_conn::router;
-    const std::string http_conn::base_path = "resource";
+    const std::string http_conn::base_path = configure::get_config().configs["resource_path"];
     std::unordered_map<std::string,router*> http_conn::routers;
 }
 

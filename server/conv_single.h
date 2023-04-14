@@ -3,6 +3,7 @@
 
 #include "server/include/conn.h"        /* conn */
 #include "server/include/threadpool.h"  /* thread_pool */
+#include "server/include/configure.h"
 #include <csignal>                      /* signal */
 
 namespace hzd {
@@ -139,9 +140,22 @@ namespace hzd {
         lock_queue<int>* close_queue{nullptr};
     public:
         /* Constructor */
-        conv_single(std::string _ip,short _port,bool _one_shot = false,bool ET = false)
-        :ip(std::move(_ip)),port(_port),one_shot(_one_shot),ET(ET)
+        conv_single(std::string _ip = "",short _port = 0,bool _one_shot = false,bool ET_ = false)
+        :ip(std::move(_ip)),port(_port),one_shot(_one_shot),ET(ET_)
         {
+            configure& conf = configure::get_config();
+            ip = (const char*)conf.configs["ip"];
+            port = (int32_t)conf.configs["port"];
+            max_connect_count = (int32_t)conf.configs["max_connect_count"];
+            if(conf.configs["multi_thread"]) enable_multi_thread();
+            if(conf.configs["object_pool"]) enable_object_pool((int32_t)conf.configs["object_pool_size"]);
+            one_shot = conf.configs["one_shot"];
+            ET = conf.configs["et"];
+            if(conf.configs["port_reuse"]) enable_port_reuse();
+            if(conf.configs["address_reuse"]) enable_addr_reuse();
+            max_events_count = conf.configs["max_events_count"];
+            listen_queue_count = conf.configs["listen_queue_count"];
+
             _create_socket_();
             _prepare_socket_address_();
             signal(SIGPIPE,SIG_IGN);

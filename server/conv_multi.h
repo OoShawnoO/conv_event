@@ -4,6 +4,7 @@
 #include "server/include/reactor.h"     /* reactor */
 #include "server/include/acceptor.h"    /* acceptor */
 #include <atomic>                       /* atomic */
+#include "include/configure.h"          /* configure */
 
 namespace hzd
 {
@@ -24,8 +25,20 @@ namespace hzd
     public:
         std::vector<reactor<T>> reactors;
         std::atomic<int> current_connect_count{0};
-        conv_multi(std::string _ip,short _port,int reactor_count = 4):ip(std::move(_ip)),port(_port)
+        conv_multi(std::string _ip = "",short _port = 0,int reactor_count = 4):ip(std::move(_ip)),port(_port)
         {
+            configure& conf = configure::get_config();
+            ip = (const char*)conf.configs["ip"];
+            port = (int)conf.configs["port"];
+            max_connect_count = (int32_t)conf.configs["max_connect_count"];
+            if(conf.configs["multi_thread"]) enable_multi_thread();
+            if(conf.configs["object_pool"]) enable_object_pool((int32_t)conf.configs["object_pool_size"]);
+            one_shot = conf.configs["one_shot"];
+            ET = conf.configs["et"];
+            if(conf.configs["port_reuse"]) enable_port_reuse();
+            if(conf.configs["address_reuse"]) enable_addr_reuse();
+            reactor_count = conf.configs["reactor_count"];
+
             run = true;
             reactors.resize(reactor_count);
             reactor<T>::set_run_true();

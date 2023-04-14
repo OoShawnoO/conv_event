@@ -3,6 +3,7 @@
 
 #include "conn.h"           /* conn */
 #include "threadpool.h"     /* threadpool */
+#include "configure.h"
 
 namespace hzd
 {
@@ -129,13 +130,17 @@ namespace hzd
         void set_max_events_count(int size){if(size >= 0) max_events_count = size;}
         void init(conv_multi<T>* _parent)
         {
+            configure& conf = configure::get_config();
+            max_events_count = conf.configs["max_events_count"];
+
+
             parent = _parent;
             ET = parent->ET;
             one_shot = parent->one_shot;
             if(parent->_thread_pool)
             {
                 if(!thread_pool)
-                    thread_pool = new threadpool<T>;
+                    thread_pool = new threadpool<T>(conf.configs["thread_count"]);
             }
             close_queue = new lock_queue<int>();
             conn_pool = parent->conn_pool;
