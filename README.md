@@ -24,7 +24,7 @@
     }
     bool process_out() override
     {
-        sprintf(write_buffer,"i am server");
+        sprintf(write_buffer,"i am core");
         write(socket_fd, write_buffer,sizeof(write_buffer));
         return true;
     }

@@ -7,7 +7,7 @@ namespace hzd {
 
     class configure {
         configure() {
-            if(!configs.load_by_file_name("conv_event/server/conf/conf.json"))
+            if(!configs.load_by_file_name("conv_event/core/conf/conf.json"))
             {
                 exit(-1);
             }

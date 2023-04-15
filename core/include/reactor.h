@@ -2,8 +2,8 @@
 #define CONV_EVENT_REACTOR_H
 
 #include "conn.h"           /* conn */
-#include "threadpool.h"     /* threadpool */
-#include "configure.h"
+#include "threadpool.h"     /* thread pool */
+#include "configure.h"      /* configure */
 
 namespace hzd
 {

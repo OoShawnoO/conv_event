@@ -1,8 +1,8 @@
 #ifndef CONV_EVENT_ACCEPTOR_H
 #define CONV_EVENT_ACCEPTOR_H
 
-#include "conn.h"   /* conn */
-#include "configure.h"
+#include "conn.h"       /* conn */
+#include "configure.h"  /* configure */
 
 namespace hzd
 {

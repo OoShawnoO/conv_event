@@ -1,9 +1,9 @@
 #ifndef CONV_EVENT_CONV_SINGLE_H
 #define CONV_EVENT_CONV_SINGLE_H
 
-#include "server/include/conn.h"        /* conn */
-#include "server/include/threadpool.h"  /* thread_pool */
-#include "server/include/configure.h"
+#include "include/conn.h"               /* conn */
+#include "include/threadpool.h"         /* thread_pool */
+#include "include/configure.h"          /* configure */
 #include <csignal>                      /* signal */
 
 namespace hzd {

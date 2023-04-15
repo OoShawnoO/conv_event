@@ -1,8 +1,8 @@
 #ifndef CONV_EVENT_CONV_MULTI_H
 #define CONV_EVENT_CONV_MULTI_H
 
-#include "server/include/reactor.h"     /* reactor */
-#include "server/include/acceptor.h"    /* acceptor */
+#include "include/reactor.h"            /* reactor */
+#include "include/acceptor.h"           /* acceptor */
 #include <atomic>                       /* atomic */
 #include "include/configure.h"          /* configure */
 

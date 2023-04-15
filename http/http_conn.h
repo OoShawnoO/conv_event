@@ -1,9 +1,9 @@
 #ifndef CONV_EVENT_HTTP_CONN_H
 #define CONV_EVENT_HTTP_CONN_H
 
-#include "server/include/conn.h"
-#include "server/conv_single.h"
-#include "server/conv_multi.h"
+#include "core/include/conn.h"
+#include "core/conv_single.h"
+#include "core/conv_multi.h"
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/mman.h>

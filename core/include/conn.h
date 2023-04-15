@@ -11,8 +11,8 @@
 #include <algorithm>            /* find */
 #include <memory>               /* unique_ptr */
 #include <atomic>               /* atomic */
-#include "safe_queue.h"
-#include "lock_queue.h"
+#include "safe_queue.h"         /* safe_queue */
+#include "lock_queue.h"         /* locK_queue */
 
 namespace hzd {
 
