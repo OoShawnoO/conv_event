@@ -1,7 +1,7 @@
-#include "json/json.h"
+#ifndef CONV_EVENT_CONFIGURE_H
+#define CONV_EVENT_CONFIGURE_H
 
-#ifndef USE_CONV_CONFIGURE_H
-#define USE_CONV_CONFIGURE_H
+#include "json/json.h"
 
 namespace hzd {
 

@@ -1,5 +1,5 @@
-#ifndef USE_CONV_SAFE_QUEUE_H
-#define USE_CONV_SAFE_QUEUE_H
+#ifndef CONV_EVENT_SAFE_QUEUE_H
+#define CONV_EVENT_SAFE_QUEUE_H
 
 #include <atomic>
 #include <vector>

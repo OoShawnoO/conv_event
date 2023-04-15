@@ -1,5 +1,5 @@
-#ifndef USE_CONV_REACTOR_H
-#define USE_CONV_REACTOR_H
+#ifndef CONV_EVENT_REACTOR_H
+#define CONV_EVENT_REACTOR_H
 
 #include "conn.h"           /* conn */
 #include "threadpool.h"     /* threadpool */

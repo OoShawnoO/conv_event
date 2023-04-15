@@ -1,5 +1,5 @@
-#ifndef USE_CONV_HTTP_CONN_H
-#define USE_CONV_HTTP_CONN_H
+#ifndef CONV_EVENT_HTTP_CONN_H
+#define CONV_EVENT_HTTP_CONN_H
 
 #include "server/include/conn.h"
 #include "server/conv_single.h"

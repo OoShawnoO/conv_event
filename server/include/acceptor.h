@@ -1,5 +1,5 @@
-#ifndef USE_CONV_ACCEPTOR_H
-#define USE_CONV_ACCEPTOR_H
+#ifndef CONV_EVENT_ACCEPTOR_H
+#define CONV_EVENT_ACCEPTOR_H
 
 #include "conn.h"   /* conn */
 #include "configure.h"

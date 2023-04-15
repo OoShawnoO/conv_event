@@ -1,5 +1,5 @@
-#ifndef USE_CONV_CONV_MULTI_H
-#define USE_CONV_CONV_MULTI_H
+#ifndef CONV_EVENT_CONV_MULTI_H
+#define CONV_EVENT_CONV_MULTI_H
 
 #include "server/include/reactor.h"     /* reactor */
 #include "server/include/acceptor.h"    /* acceptor */
@@ -25,11 +25,11 @@ namespace hzd
     public:
         std::vector<reactor<T>> reactors;
         std::atomic<int> current_connect_count{0};
-        conv_multi(std::string _ip = "",short _port = 0,int reactor_count = 4):ip(std::move(_ip)),port(_port)
+        explicit conv_multi(std::string _ip = "",short _port = 0,int reactor_count = 4):ip(std::move(_ip)),port(_port)
         {
             configure& conf = configure::get_config();
             ip = (const char*)conf.configs["ip"];
-            port = (int)conf.configs["port"];
+            port = conf.configs["port"];
             max_connect_count = (int32_t)conf.configs["max_connect_count"];
             if(conf.configs["multi_thread"]) enable_multi_thread();
             if(conf.configs["object_pool"]) enable_object_pool((int32_t)conf.configs["object_pool_size"]);
@@ -103,7 +103,7 @@ namespace hzd
           * @param max_process_count max process count
           * @retval None
           */
-        void enable_multi_thread(int thread_count = 8,int max_process_count = 10000)
+        void enable_multi_thread()
         {
             _thread_pool = true;
         }

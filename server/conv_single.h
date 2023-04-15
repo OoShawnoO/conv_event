@@ -1,5 +1,5 @@
-#ifndef CONV_EVENT_CONV_H
-#define CONV_EVENT_CONV_H
+#ifndef CONV_EVENT_CONV_SINGLE_H
+#define CONV_EVENT_CONV_SINGLE_H
 
 #include "server/include/conn.h"        /* conn */
 #include "server/include/threadpool.h"  /* thread_pool */
@@ -140,12 +140,12 @@ namespace hzd {
         lock_queue<int>* close_queue{nullptr};
     public:
         /* Constructor */
-        conv_single(std::string _ip = "",short _port = 0,bool _one_shot = false,bool ET_ = false)
+        explicit conv_single(std::string _ip = "",short _port = 0,bool _one_shot = false,bool ET_ = false)
         :ip(std::move(_ip)),port(_port),one_shot(_one_shot),ET(ET_)
         {
             configure& conf = configure::get_config();
             ip = (const char*)conf.configs["ip"];
-            port = (int32_t)conf.configs["port"];
+            port = conf.configs["port"];
             max_connect_count = (int32_t)conf.configs["max_connect_count"];
             if(conf.configs["multi_thread"]) enable_multi_thread();
             if(conf.configs["object_pool"]) enable_object_pool((int32_t)conf.configs["object_pool_size"]);
