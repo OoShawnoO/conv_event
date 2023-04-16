@@ -35,14 +35,16 @@ namespace hzd
             if(conf.configs["object_pool"]) enable_object_pool((int32_t)conf.configs["object_pool_size"]);
             one_shot = conf.configs["one_shot"];
             ET = conf.configs["et"];
-            if(conf.configs["port_reuse"]) enable_port_reuse();
-            if(conf.configs["address_reuse"]) enable_addr_reuse();
             reactor_count = conf.configs["reactor_count"];
 
             run = true;
             reactors.resize(reactor_count);
             reactor<T>::set_run_true();
             _acceptor.init(this);
+
+            if(conf.configs["port_reuse"]) enable_port_reuse();
+            if(conf.configs["address_reuse"]) enable_addr_reuse();
+
             signal(SIGPIPE,SIG_IGN);
         };
         virtual ~conv_multi()

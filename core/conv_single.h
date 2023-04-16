@@ -151,14 +151,16 @@ namespace hzd {
             if(conf.configs["object_pool"]) enable_object_pool((int32_t)conf.configs["object_pool_size"]);
             one_shot = conf.configs["one_shot"];
             ET = conf.configs["et"];
-            if(conf.configs["port_reuse"]) enable_port_reuse();
-            if(conf.configs["address_reuse"]) enable_addr_reuse();
             max_events_count = conf.configs["max_events_count"];
             listen_queue_count = conf.configs["listen_queue_count"];
 
             _create_socket_();
             _prepare_socket_address_();
             signal(SIGPIPE,SIG_IGN);
+
+            if(conf.configs["port_reuse"]) enable_port_reuse();
+            if(conf.configs["address_reuse"]) enable_addr_reuse();
+
             close_queue = new lock_queue<int>;
         }
         /* Destructor */

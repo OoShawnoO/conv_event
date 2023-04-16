@@ -9,7 +9,6 @@
 #include <sys/mman.h>
 #include <exception>
 #include <sys/sendfile.h>
-#include <functional>
 #include <utility>
 
 namespace hzd {
@@ -1080,6 +1079,9 @@ namespace hzd {
     using router = http_conn::router;
     const std::string http_conn::base_path = configure::get_config().configs["resource_path"];
     std::unordered_map<std::string,router*> http_conn::routers;
+
+    using http_multi = conv_multi<http_conn>;
+    using http_single = conv_single<http_conn>;
 }
 
 #endif
