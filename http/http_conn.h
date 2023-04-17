@@ -1,17 +1,14 @@
 #ifndef CONV_EVENT_HTTP_CONN_H
 #define CONV_EVENT_HTTP_CONN_H
 
-#include "core/include/conn.h"
-#include "core/conv_single.h"
-#include "core/conv_multi.h"
-#include <sys/stat.h>
-#include <sys/uio.h>
-#include <sys/mman.h>
-#include <exception>
-#include <sys/sendfile.h>
-#include <memory>
-#include <utility>
-#include <memory>
+#include "core/include/conn.h"  /* conn */
+#include "core/conv_single.h"   /* conv_single*/
+#include "core/conv_multi.h"    /* conv_multi */
+#include <sys/stat.h>           /* fstat */
+#include <exception>            /* exception */
+#include <sys/sendfile.h>       /* sendfile */
+#include <memory>               /* shared_ptr */
+#include <utility>              /* types */
 
 namespace hzd {
     enum http_Methods {  GET, POST, PUT, PATCH, DELETE, TRACE, HEAD, OPTIONS, CONNECT    };
@@ -1203,5 +1200,6 @@ namespace hzd {
     using http_multi = conv_multi<http_conn>;
     using http_single = conv_single<http_conn>;
 }
+using namespace hzd;
 
 #endif
