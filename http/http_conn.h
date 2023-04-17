@@ -9,7 +9,9 @@
 #include <sys/mman.h>
 #include <exception>
 #include <sys/sendfile.h>
+#include <memory>
 #include <utility>
+#include <memory>
 
 namespace hzd {
     enum http_Methods {  GET, POST, PUT, PATCH, DELETE, TRACE, HEAD, OPTIONS, CONNECT    };
@@ -554,6 +556,33 @@ namespace hzd {
             virtual bool method_options(http_conn*) { return true; }
             virtual bool method_connect(http_conn*) { return true; }
         };
+
+        #define FILTER(f) f static_##f;
+        class filter{
+            std::vector<http_Methods> _not_allow_;
+        public:
+            struct node
+            {
+                std::unordered_map<std::string,std::shared_ptr<node>> children;
+                filter* _filter;
+
+                node()
+                {
+                    _filter = nullptr;
+                }
+            };
+
+            std::string url;
+            explicit filter(std::string&& _url,std::vector<http_Methods>&& not_allow = {})
+            {
+                url = std::move(_url);
+                _not_allow_ = std::move(not_allow);
+                register_filter(this);
+            }
+            virtual bool allow(http_Methods m) {
+                return find(_not_allow_.begin(),_not_allow_.end(),m) == _not_allow_.end();
+            }
+        };
         void redirect(std::string url)
         {
             res_header.status = http_Status::Temporary_Redirect;
@@ -576,12 +605,86 @@ namespace hzd {
             if(!r) return;
             routers[r->url] = r;
         }
-
+        static void register_filter(filter* f)
+        {
+            if(!f) return;
+            _register_filter(std::forward<filter*>(f));
+        }
     private:
 
         const static std::string base_path;
         
         static std::unordered_map<std::string,router*> routers;
+        static std::unordered_map<std::string,std::shared_ptr<filter::node>> filters;
+
+        static void _register_filter(filter* f)
+        {
+            if(f->url.size() < 2 || f->url[0] != '/' || f->url[f->url.size()-1] == '/') {
+                LOG_FMT(General_Error,"","拦截器注册错误 url = %s",f->url.c_str());
+                return;
+            }
+            auto cur = filters["/"];
+            if(f->url[1] == '*')
+            {
+                cur->_filter = f;
+                return;
+            }
+            size_t pre = 1;
+            size_t pos = f->url.find('/',pre);
+            std::string sub_str;
+            while(pos != std::string::npos)
+            {
+                sub_str = f->url.substr(pre,pos-pre);
+                cur->children[sub_str] = std::make_shared<filter::node>();
+                pre = pos+1;
+                pos = f->url.find('/',pre);
+            }
+            sub_str = f->url.substr(pre);
+            if(sub_str == "*")
+            {
+                cur->_filter = f;
+                return;
+            }
+            cur->children[sub_str] = std::make_shared<filter::node>();
+            cur = cur->children[sub_str];
+            cur->_filter = f;
+        }
+
+        static filter* match(const std::string& url)
+        {
+            if(url.empty()) return nullptr;
+            if(url[0] != '/') return nullptr;
+            if(url[1] == '*') return filters["/"]->_filter;
+            auto cur = filters["/"];
+            filter* tmp = cur->_filter;
+            size_t pre = 1;
+            size_t pos = url.find('/',pre);
+            std::string sub_str;
+            while(pos != std::string::npos && pos < url.size()-1)
+            {
+                sub_str = url.substr(pre,pos-pre);
+                if(cur->children.find(sub_str) == cur->children.end())
+                {
+                    return tmp;
+                }
+                cur = cur->children[sub_str];
+                tmp = cur->_filter;
+                pre = pos+1;
+                pos = url.find('/',pre);
+            }
+            if(pos == url.size()-1)
+            {
+                sub_str = url.substr(pre,pos-pre-1);
+            }
+            else sub_str = url.substr(pre);
+            if(cur->children.find(sub_str) == cur->children.end())
+            {
+                return tmp;
+            }
+            cur = cur->children[sub_str];
+            tmp = cur->_filter;
+            return tmp;
+        }
 
         struct request_header
         {
@@ -1043,6 +1146,19 @@ namespace hzd {
         {
             clear_out();
             res_header.version = req_header.version;
+            filter* f = match(req_header.url);
+            if(f)
+            {
+                if(!f->allow(req_header.method))
+                {
+                    res_header.status = http_Status::Forbidden;
+                    build_body_text();
+                    res_header.response_headers["Content-Length"] = std::to_string(res_body.body_text.size());
+                    if(!send_response_header()) return false;
+                    if(!send_response_body()) return false;
+                    return true;
+                }
+            }
             switch(req_header.method)
             {
                 case GET : {
@@ -1077,8 +1193,11 @@ namespace hzd {
         }
     };
     using router = http_conn::router;
+    using filter = http_conn::filter;
+    using hzd::http_Methods;
     const std::string http_conn::base_path = configure::get_config().configs["resource_path"];
     std::unordered_map<std::string,router*> http_conn::routers;
+    std::unordered_map<std::string,std::shared_ptr<filter::node>> http_conn::filters { {"/",std::make_shared<filter::node>()} };
 
     using http_multi = conv_multi<http_conn>;
     using http_single = conv_single<http_conn>;

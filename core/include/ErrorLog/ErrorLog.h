@@ -20,6 +20,7 @@
 namespace hzd {
     enum Error {
         None = 0,
+        General_Error,
         Out_Of_Bound,
         Pointer_To_Null,
         Bad_Malloc,
@@ -272,6 +273,7 @@ namespace hzd {
     public:
         std::unordered_map<Error,std::string> errorMsg
                 {
+                        {General_Error,"* Error *"},
                         {None,"* No Error *"},
                         {Out_Of_Bound,"* Out Of Bound *"},
                         {Pointer_To_Null,"* Null Pointer *"},
