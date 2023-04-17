@@ -636,6 +636,7 @@ namespace hzd {
             {
                 sub_str = f->url.substr(pre,pos-pre);
                 cur->children[sub_str] = std::make_shared<filter::node>();
+                cur = cur->children[sub_str];
                 pre = pos+1;
                 pos = f->url.find('/',pre);
             }
