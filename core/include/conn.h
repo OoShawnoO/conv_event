@@ -170,7 +170,7 @@ namespace hzd {
             one_shot = _one_shot;
             epoll_add(epoll_fd,socket_fd,ET,one_shot);
         }
-        virtual void init(int _socket_fd,sockaddr_in* _addr,int _epoll_fd,bool et,bool _one_shot,lock_queue<int>* cq = nullptr)
+        virtual void init(int _socket_fd,sockaddr_in* _addr,int _epoll_fd,bool et,bool _one_shot,lock_queue<int>* cq = nullptr,bool add = true)
         {
             status = OK;
             close_queue = cq;
@@ -179,7 +179,8 @@ namespace hzd {
             epoll_fd = _epoll_fd;
             ET = et;
             one_shot = _one_shot;
-            epoll_add(epoll_fd,socket_fd,ET,one_shot);
+            if(add)
+                epoll_add(epoll_fd,socket_fd,ET,one_shot);
         }
         /**
           * @brief get socket address for this connect

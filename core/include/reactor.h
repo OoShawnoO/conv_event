@@ -22,8 +22,6 @@ namespace hzd
             events = nullptr;
             delete thread_pool;
             delete close_queue;
-            delete conn_queue;
-            conn_queue = nullptr;
             close_queue = nullptr;
             thread_pool = nullptr;
             parent = nullptr;
@@ -63,7 +61,6 @@ namespace hzd
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool{nullptr};
         connpool<T>* conn_pool{nullptr};
-        lock_queue<T*>* conn_queue{nullptr};
         conv_multi<T>* parent{nullptr};
         lock_queue<int>* close_queue{nullptr};
 #define CONNECTS_REMOVE_FD_REACTOR do                   \
@@ -144,11 +141,10 @@ namespace hzd
             }
             close_queue = new lock_queue<int>();
             conn_pool = parent->conn_pool;
-            conn_queue = new lock_queue<T*>;
         }
-        void add_conn(T* t)
+        void add_conn(int fd)
         {
-            conn_queue->push(t);
+            epoll_add(epoll_fd,fd,ET,one_shot);
         }
         void work(int time_out=1)
         {
@@ -162,29 +158,6 @@ namespace hzd
                     if(cur_fd == -1) continue;
                     if(connects[cur_fd] == nullptr) continue;
                     CONNECTS_REMOVE_FD_REACTOR;
-                }
-                while(!conn_queue->empty())
-                {
-                    conn_queue->pop(t);
-                    if(connects[t->fd()]!=nullptr)
-                    {
-                        LOG(Pointer_To_Null,"already exist");
-                        if(conn_pool)
-                        {
-                            conn_pool->release(t);
-                            t = nullptr;
-                        }
-                        else
-                        {
-                            delete t;
-                            t = nullptr;
-                        }
-                    }
-                    else
-                    {
-                        t->init(epoll_fd,ET,one_shot,close_queue);
-                        connects[t->fd()] = t;
-                    }
                 }
 
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) == 0)
@@ -202,6 +175,30 @@ namespace hzd
                     for(int event_index = 0;event_index < ret; event_index++)
                     {
                         cur_fd = events[event_index].data.fd;
+
+                        if(connects[cur_fd] == nullptr)
+                        {
+                            if(conn_pool)
+                            {
+                                t = conn_pool->acquire();
+                            }
+                            else
+                            {
+                                t = new T;
+                            }
+                            if(!t)
+                            {
+                                ::close(cur_fd);
+                                continue;
+                            }
+                            sockaddr_in addr{};
+                            socklen_t len;
+                            getsockname(cur_fd,(sockaddr*)&addr,&len);
+                            t->init(cur_fd,&addr,epoll_fd,ET,one_shot,close_queue,false);
+                            parent->current_connect_count++;
+                            connects[cur_fd] = t;
+                        }
+
                         if(events[event_index].events & EPOLLRDHUP)
                         {
                             connects[cur_fd]->status = conn::RDHUP;

@@ -148,21 +148,8 @@ namespace hzd
                 LOG(Socket_Accept,"socket accept error");
                 return;
             }
-            T* t;
-            if(conn_pool)
-            {
-                t = conn_pool->acquire();
-                if(!t){::close(fd);return;}
-            }
-            else
-            {
-                t = new T;
-                if(!t){::close(fd);return;}
-            }
-            parent->current_connect_count++;
-            t->init(fd,&client_addr);
             static int count = 0;
-            parent->reactors[count].add_conn(t);
+            parent->reactors[count].add_conn(fd);
             count = (count+1)%parent->reactors.size();
         }
 
