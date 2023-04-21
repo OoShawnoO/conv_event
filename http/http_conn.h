@@ -543,16 +543,33 @@ namespace hzd {
             inline bool allow(http_Methods m) {
                 return find(_allow_.begin(),_allow_.end(),m) != _allow_.end();
             }
-            virtual bool method_get(http_conn*) { return true; }
-            virtual bool method_post(http_conn*) { return true; }
-            virtual bool method_put(http_conn*) { return true; }
-            virtual bool method_patch(http_conn*) { return true; }
-            virtual bool method_delete(http_conn*) { return true; }
-            virtual bool method_trace(http_conn*) { return true; }
-            virtual bool method_head(http_conn*) { return true; }
-            virtual bool method_options(http_conn*) { return true; }
-            virtual bool method_connect(http_conn*) { return true; }
+            virtual bool method_get(http_conn* c) { return c->method_not_allow(); }
+            virtual bool method_post(http_conn* c) { return c->method_not_allow(); }
+            virtual bool method_put(http_conn* c) { return c->method_not_allow(); }
+            virtual bool method_patch(http_conn* c) { return c->method_not_allow(); }
+            virtual bool method_delete(http_conn* c) { return c->method_not_allow(); }
+            virtual bool method_trace(http_conn* c) { return c->method_not_allow(); }
+            virtual bool method_head(http_conn* c) { return c->method_not_allow(); }
+            virtual bool method_options(http_conn* c) { return c->method_not_allow(); }
+            virtual bool method_connect(http_conn* c) { return c->method_not_allow(); }
         };
+        void redirect(std::string url)
+        {
+            res_header.status = http_Status::Temporary_Redirect;
+            res_header.response_headers["Location"] = std::move(url);
+            if(!send_response_header()) {return;}
+            http_1_0_close();
+        }
+        void render(std::string file_path)
+        {
+            req_header.url = std::move(file_path);
+            load_file();
+            if(!send_response_header()) { return; }
+            write_total_bytes = res_body.file_stat.st_size;
+            write_cursor = 0;
+            if(!send_response_body()) { return; }
+            http_1_0_close();
+        }
 
         #define FILTER(f) f static_##f;
         class filter{
@@ -580,23 +597,7 @@ namespace hzd {
                 return find(_not_allow_.begin(),_not_allow_.end(),m) == _not_allow_.end();
             }
         };
-        void redirect(std::string url)
-        {
-            res_header.status = http_Status::Temporary_Redirect;
-            res_header.response_headers["Location"] = std::move(url);
-            if(!send_response_header()) {return;}
-            http_1_0_close();
-        }
-        void render(std::string file_path)
-        {
-            req_header.url = std::move(file_path);
-            load_file();
-            if(!send_response_header()) { return; }
-            write_total_bytes = res_body.file_stat.st_size;
-            write_cursor = 0;
-            if(!send_response_body()) { return; }
-            http_1_0_close();
-        }
+
 
         static void register_router(router* r) {
             if(!r) return;
@@ -959,7 +960,18 @@ namespace hzd {
                 notify_close();
             }
         }
-        
+
+        bool send_status(http_Status status)
+        {
+            res_header.status = status;
+            build_body_text();
+            res_header.response_headers["Content-Length"] = std::to_string(res_body.body_text.size());
+            if(!send_response_header()) return false;
+            if(!send_response_body()) return false;
+            http_1_0_close();
+            return true;
+        }
+
         virtual bool process_get()
         {
             try
@@ -1149,12 +1161,7 @@ namespace hzd {
             {
                 if(!f->allow(req_header.method))
                 {
-                    res_header.status = http_Status::Forbidden;
-                    build_body_text();
-                    res_header.response_headers["Content-Length"] = std::to_string(res_body.body_text.size());
-                    if(!send_response_header()) return false;
-                    if(!send_response_body()) return false;
-                    return true;
+                    return send_status(http_Status::Forbidden);
                 }
             }
             switch(req_header.method)
