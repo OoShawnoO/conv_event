@@ -2,6 +2,17 @@
 # <font face="Agave Nerd Font">conv_event
 ### Full name:convenient epoll event
 
+>  Benchmark 
+> - conv_event got a high performance in benchmark : )!
+  comparator:  libevent && Tomcat
+> - webbenchmark:\
+> localhost test with 18000 clients test 300s        \
+>   conv_event: 1153269 pages/min  6601589 bytes/sec \
+>   libevent:   916564  pages/min  5132641 bytes/sec 
+> - apache benchmark:\
+> ![img_1.png](img_1.png)
+
+
 > Usage
 > 
 >[clone]:git clone --recursive https://github.com/OoShawnoO/conv_event.git
@@ -50,12 +61,33 @@
     hzd::conv_single<conn_a> base;
     ```
 
-- Use multi-thread
+- ~~Use multi-thread~~
     ```c++
     hzd::conv_multi<conn_a> base;
     base.multi_thread(); /* 创建线程池 */
     base.wait();
     ```
+- Edit conv_event/conf/conf.json to configure project
+  ```json
+  {
+    "ip" : "0.0.0.0",
+    "port" : 9999,
+    "resource_path" : "resource",
+    "multi_thread" : true,
+    "thread_count" : 8,
+    "max_connect_count" : 200000,
+    "max_events_count" : 4096,
+    "listen_queue_count" : 2048,
+    "object_pool" : true,
+    "object_pool_size" : 1024,
+    "reactor_count" : 4,
+    "one_shot" : true,
+    "et" : false,
+    "port_reuse" : true,
+    "address_reuse" : true
+  }
+  ```
+
 - Manual register event
     ```c++
     bool process_in/process_out()
