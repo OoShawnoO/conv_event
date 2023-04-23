@@ -4,6 +4,10 @@
 #include <cstddef>
 #include <cstring>
 #include <sys/socket.h>
+#include <fcntl.h>
+#include <sys/stat.h>           /* fstat */
+#include <sys/sendfile.h>
+#include <csignal>
 #include "ErrorLog/ErrorLog.h"
 #include "utils.h"
 
@@ -147,6 +151,27 @@ namespace hzd {
             already = send_base(data.c_str());
             return already;
         }
+        bool send_with_header(std::string&& data)
+        {
+            if(already)
+            {
+                write_total_bytes = data.size()+1;
+                write_cursor = 0;
+                if(write_total_bytes <= 1)
+                {
+                    LOG(Conn_Send,"send data = null");
+                    return false;
+                }
+                header h{write_total_bytes};
+                if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
+                {
+                    LOG(Conn_Send,"header send error");
+                    return false;
+                }
+            }
+            already = send_base(data.c_str());
+            return already;
+        }
         /**
           * @brief send data by given length of data
           * @note None
@@ -155,6 +180,21 @@ namespace hzd {
           * @retval None
           */
         bool send(std::string& data,size_t size)
+        {
+            if(already)
+            {
+                write_total_bytes = size;
+                write_cursor = 0;
+                if(write_total_bytes <= 0)
+                {
+                    LOG(Conn_Send,"send data = null");
+                    return false;
+                }
+            }
+            already = send_base(data.c_str());
+            return already;
+        }
+        bool send(std::string&& data,size_t size)
         {
             if(already)
             {
@@ -183,6 +223,33 @@ namespace hzd {
             }
             already = send_base(data);
             return already;
+        }
+        bool send_file(const std::string& filename)
+        {
+            int file_fd = open(filename.c_str(),O_RDONLY);
+            struct stat st{};
+            fstat(file_fd,&st);
+            write_cursor = 0;
+            write_total_bytes = st.st_size;
+            while(write_cursor < write_total_bytes)
+            {
+                auto offset = (off_t)write_cursor;
+                size_t send_count = sendfile(socket_fd,file_fd,&offset,write_total_bytes-write_cursor);
+                if(send_count == -1)
+                {
+                    if(errno == EAGAIN)
+                    {
+                        return false;
+                    }
+                    close(file_fd);
+                    file_fd = -1;
+                    return false;
+                }
+                write_cursor += send_count;
+            }
+            close(file_fd);
+            file_fd = -1;
+            return true;
         }
         /**
           * @brief recv data and output type
@@ -240,8 +307,43 @@ namespace hzd {
             already = recv_base(data);
             return already;
         }
+        bool recv_file(const std::string& download_path,size_t size)
+        {
+            read_cursor = 0;
+            read_total_bytes = size;
+            size_t read_count;
+            FILE* fp = fopen(download_path.c_str(),"wb");
+            while(read_cursor < read_total_bytes)
+            {
+                bzero(read_buffer,sizeof(read_buffer));
+                if((read_count = ::recv(socket_fd,read_buffer,
+                                        (read_total_bytes-read_cursor) > sizeof(read_buffer) ? sizeof(read_buffer) : (read_total_bytes-read_cursor)
+                        ,0))<=0)
+                {
+                    if(read_count == -1)
+                    {
+                        if(errno == EAGAIN || errno == EWOULDBLOCK)
+                        {
+                            return true;
+                        }
+                        return false;
+                    }
+                    else
+                    {
+                        if(errno == EAGAIN || errno == EWOULDBLOCK)
+                        {
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+                fwrite(read_buffer,read_count,1,fp);
+                read_cursor += read_count;
+            }
+            fclose(fp);
+            return true;
+        }
     };
-
 }
 
 #endif

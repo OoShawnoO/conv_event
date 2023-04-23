@@ -402,8 +402,9 @@ namespace hzd {
                 }
                 if((ret = epoll_wait(epoll_fd,events,max_events_count,time_out)) < 0)
                 {
-                        LOG(Epoll_Wait,"epoll wait error");
-                        break;
+                    if(errno == EINTR) continue;
+                    LOG(Epoll_Wait,"epoll wait error");
+                    break;
                 }
                 for(int event_index = 0;event_index < ret; event_index++)
                 {
