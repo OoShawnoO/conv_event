@@ -12,6 +12,11 @@
 > - apache benchmark:\
 > ![img_1.png](img_1.png)
 
+> 简介: 封装epoll实现单Reactor/主从Reactor模型轻量网络框架 \
+> 提供应用层实现案例：\
+> conv_event/http 基于conv_event实现的Web服务器  \
+> conv_event/detect 基于conv_event+Pytorch+opencv实现的图像识别服务器 \
+> 支持:Linux平台 C++11以上标准
 
 > Usage
 > 
