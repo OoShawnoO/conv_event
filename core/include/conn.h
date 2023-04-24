@@ -98,7 +98,9 @@ namespace hzd {
           */
         bool process_out_base()
         {
-            return process_out();
+            bool ret = process_out();
+            if(!ret) notify_close();
+            return ret;
         }
         /**
           * @brief base of process in data
@@ -108,7 +110,9 @@ namespace hzd {
           */
         bool process_in_base()
         {
-            return process_in();
+            bool ret = process_in();
+            if(!ret) notify_close();
+            return ret;
         }
     protected:
         int epoll_fd{0};
