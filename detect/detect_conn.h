@@ -51,7 +51,8 @@ namespace hzd
 
     std::unordered_map<std::string,detector> detect_conn::detectors{
             {"flower",detector{"../model/flower"}},
-            {"culture_relic",detector{"../model/culture_relic"}}
+            {"culture_relic",detector{"../model/culture_relic"}},
+            {"face_express",detector{"../model/face_express"}}
     };
 }
 
