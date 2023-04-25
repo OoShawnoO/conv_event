@@ -159,21 +159,6 @@ namespace hzd {
             }
         }
         /* common virtual member methods */
-        virtual void init(int _socket_fd,sockaddr_in* _addr)
-        {
-            status = OK;
-            socket_fd = _socket_fd;
-            sock_addr = *_addr;
-        }
-        virtual void init(int _epoll_fd,bool et,bool _one_shot,lock_queue<int>* cq)
-        {
-            status = OK;
-            close_queue = cq;
-            epoll_fd = _epoll_fd;
-            ET = et;
-            one_shot = _one_shot;
-            epoll_add(epoll_fd,socket_fd,ET,one_shot);
-        }
         virtual void init(int _socket_fd,sockaddr_in* _addr,int _epoll_fd,bool et,bool _one_shot,lock_queue<int>* cq = nullptr,bool add = true)
         {
             status = OK;
