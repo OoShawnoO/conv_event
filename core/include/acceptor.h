@@ -148,9 +148,16 @@ namespace hzd
                 LOG(Socket_Accept,"socket accept error");
                 return;
             }
-            static int count = 0;
-            parent->reactors[count].add_conn(fd);
-            count = (count+1)%parent->reactors.size();
+            int least = INT_MAX;
+            int least_index = 0;
+            for(int i=0;i<parent->reactors.size();i++)
+            {
+                if(least > parent->reactors[i].connects.size()) {
+                    least = parent->reactors[i].connects.size();
+                    least_index = i;
+                }
+            }
+            parent->reactors[least_index].add_conn(fd);
         }
 
     protected:

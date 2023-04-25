@@ -58,7 +58,7 @@ namespace hzd
         int epoll_fd{-1};
         epoll_event* events{nullptr};
         int max_events_count{4096};
-        std::unordered_map<int,T*> connects;
+
         threadpool<T>* thread_pool{nullptr};
         connpool<T>* conn_pool{nullptr};
         conv_multi<T>* parent{nullptr};
@@ -96,6 +96,7 @@ namespace hzd
         }while(0)
 
     public:
+        std::unordered_map<int,T*> connects;
         static void work(void* r,int time_out)
         {
             auto* reac = (reactor<T>*)r;
