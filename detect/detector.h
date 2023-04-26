@@ -1,9 +1,9 @@
 #ifndef DETECT_DETECTOR_H
 #define DETECT_DETECTOR_H
 #include <unordered_map>
-#include <torch/script.h>
-#include <opencv2/opencv.hpp>
-#include "core/include/json/json.h"
+#include <torch/script.h>               /* torch::jit */
+#include <opencv2/opencv.hpp>           /* opencv::cv */
+#include "core/include/json/json.h"     /* hzd::json */
 
 namespace hzd {
 

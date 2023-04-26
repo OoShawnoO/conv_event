@@ -5,7 +5,7 @@
 #include "core/conv_multi.h"    /* conv_multi */
 #include "core/conv_single.h"   /* conv_single */
 #include "detector.h"           /* detector */
-#include <algorithm>
+#include <algorithm>            /* find */
 
 namespace hzd
 {
