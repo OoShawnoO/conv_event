@@ -570,6 +570,23 @@ namespace hzd {
             if(!send_response_body()) { return; }
             http_1_0_close();
         }
+        bool send_str(const std::string& str){
+            res_header.response_headers["Content-Length"] = std::to_string(str.size());
+            res_header.response_headers["Content-Type"] = "text/html";
+            res_header.status = http_Status::OK;
+
+            if(!send_response_header()) return false;
+            while(!send((std::string&)str,str.size()))
+            {
+                if(errno == EAGAIN) continue;
+                ::close(res_body.file_fd);
+                res_body.file_fd = -1;
+                notify_close();
+                return false;
+            }
+            http_1_0_close();
+            return true;
+        }
 
         #define FILTER(f) f static_##f;
         class filter{
@@ -958,6 +975,10 @@ namespace hzd {
             if(res_header.version == http_Version::HTTP_1_0)
             {
                 notify_close();
+            }
+            else
+            {
+                next(EPOLLIN);
             }
         }
 

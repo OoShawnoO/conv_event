@@ -148,7 +148,7 @@ namespace hzd
                 LOG(Socket_Accept,"socket accept error");
                 return;
             }
-            int least = INT_MAX;
+            int least = INT32_MAX;
             int least_index = 0;
             for(int i=0;i<parent->reactors.size();i++)
             {
