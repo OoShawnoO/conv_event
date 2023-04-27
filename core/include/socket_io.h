@@ -102,6 +102,7 @@ namespace hzd {
          * @param type data-type
          * @retval None
          */
+    public:
         bool send_with_header(const char* data)
         {
             if(already)
