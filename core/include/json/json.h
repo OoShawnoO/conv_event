@@ -217,6 +217,7 @@ namespace hzd {
             json_val(double double_) noexcept : obj(double_) { type = json_type::JSON_DOUBLE; }
             json_val(bool bool_) noexcept : obj(bool_) { type = json_type::JSON_BOOL; }
             json_val(const char *str) noexcept : obj(str) { type = json_type::JSON_STRING; }
+            json_val(std::string& str) noexcept : obj(str.c_str()) { type = json_type::JSON_STRING; }
             json_val(const json& json_ref) {
                 type = json_type::JSON_JSON;
                 obj.v_json = new json();

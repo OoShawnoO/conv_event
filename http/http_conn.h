@@ -528,6 +528,64 @@ namespace hzd {
     /* endregion */
     class http_conn : public conn {
     public:
+        struct request_header
+        {
+            http_Methods method;
+            std::string url;
+            http_Version version;
+            std::unordered_map<std::string,std::string> parameters;
+            std::unordered_map<std::string,std::vector<std::string>> request_headers;
+            void clear()
+            {
+                url.clear();
+                request_headers.clear();
+            }
+        } req_header;
+
+        struct request_body{
+            std::string boundary;
+            std::unordered_map<std::string,std::vector<std::string>> request_body_headers;
+        } req_body;
+
+        struct response_header
+        {
+            http_Version version;
+            http_Status status;
+            std::unordered_map<std::string,std::string> response_headers;
+            std::string header_text;
+            std::string to_string()
+            {
+                std::ostringstream buffer;
+                buffer << http_version_map.at(version) << " " << std::to_string((int32_t)status) << " " << http_status_map.at(status) << "\r\n";
+                for(const auto & p : response_headers)
+                {
+                    buffer << p.first << ":" << p.second << "\r\n";
+                }
+                buffer << "\r\n";
+                return buffer.str();
+            }
+            void clear()
+            {
+                response_headers.clear();
+                header_text.clear();
+            }
+        } res_header;
+
+        struct response_body
+        {
+            std::string file_name;
+            std::string body_text;
+            int file_fd;
+            struct stat file_stat{};
+            void clear()
+            {
+                file_name.clear();
+                body_text.clear();
+                file_stat = {};
+                file_fd = -1;
+            }
+        } res_body;
+
         #define ROUTER(r) r static_##r;
         class router
         {
@@ -570,9 +628,9 @@ namespace hzd {
             if(!send_response_body()) { return; }
             http_1_0_close();
         }
-        bool send_str(const std::string& str){
+        bool send_str(const std::string& str,const std::string& type = "text/html"){
             res_header.response_headers["Content-Length"] = std::to_string(str.size());
-            res_header.response_headers["Content-Type"] = "text/html";
+            res_header.response_headers["Content-Type"] = type;
             res_header.status = http_Status::OK;
 
             if(!send_response_header()) return false;
@@ -610,8 +668,8 @@ namespace hzd {
                 _not_allow_ = std::move(not_allow);
                 register_filter(this);
             }
-            virtual bool allow(http_Methods m) {
-                return find(_not_allow_.begin(),_not_allow_.end(),m) == _not_allow_.end();
+            virtual bool allow(http_conn* con) {
+                return find(_not_allow_.begin(),_not_allow_.end(),con->req_header.method) == _not_allow_.end();
             }
         };
 
@@ -702,63 +760,7 @@ namespace hzd {
             return tmp;
         }
 
-        struct request_header
-        {
-            http_Methods method;
-            std::string url;
-            http_Version version;
-            std::unordered_map<std::string,std::string> parameters;
-            std::unordered_map<std::string,std::vector<std::string>> request_headers;
-            void clear()
-            {
-                url.clear();
-                request_headers.clear();
-            }
-        } req_header;
 
-        struct request_body{
-            std::string boundary;
-            std::unordered_map<std::string,std::vector<std::string>> request_body_headers;
-        } req_body;
-
-        struct response_header
-        {
-            http_Version version;
-            http_Status status;
-            std::unordered_map<std::string,std::string> response_headers;
-            std::string header_text;
-            std::string to_string()
-            {
-                std::ostringstream buffer;
-                buffer << http_version_map.at(version) << " " << std::to_string((int32_t)status) << " " << http_status_map.at(status) << "\r\n";
-                for(const auto & p : response_headers)
-                {
-                    buffer << p.first << ":" << p.second << "\r\n";
-                }
-                buffer << "\r\n";
-                return buffer.str();
-            }
-            void clear()
-            {
-                response_headers.clear();
-                header_text.clear();
-            }
-        } res_header;
-
-        struct response_body
-        {
-            std::string file_name;
-            std::string body_text;
-            int file_fd;
-            struct stat file_stat{};
-            void clear()
-            {
-                file_name.clear();
-                body_text.clear();
-                file_stat = {};
-                file_fd = -1;
-            }
-        } res_body;
 
         bool send_response_body_base()
         {
@@ -1233,7 +1235,7 @@ namespace hzd {
                 parse_body(body);
                 size_t post_data_start = body.find("\r\n\r\n");
                 std::string post_data = body.substr(post_data_start+4,body.size()-req_body.boundary.size()-6-post_data_start-4);
-                std::ofstream out("tmp/img.jpg",std::ios::binary);
+                std::ofstream out("resource/static/tmp/img.jpg",std::ios::binary);
                 out << post_data;
                 out.close();
             }
@@ -1247,7 +1249,7 @@ namespace hzd {
             filter* f = match(req_header.url);
             if(f)
             {
-                if(!f->allow(req_header.method))
+                if(!f->allow(this))
                 {
                     return send_status(http_Status::Forbidden);
                 }
