@@ -716,6 +716,11 @@ namespace hzd {
             }
         } req_header;
 
+        struct request_body{
+            std::string boundary;
+            std::unordered_map<std::string,std::vector<std::string>> request_body_headers;
+        } req_body;
+
         struct response_header
         {
             http_Version version;
@@ -881,6 +886,53 @@ namespace hzd {
                 }
             }
             return true;
+        }
+        bool parse_body(const std::string& body)
+        {
+            size_t boundary_end = body.find("\r\n");
+            req_body.boundary = body.substr(0,boundary_end);
+            std::stringstream ss(body.substr(boundary_end + 2));
+            std::string line;
+            std::string last_header;
+            while(getline(ss,line))
+            {
+                if(line.empty()) break;
+                line.erase(line.end()-1);
+                if(line[0] == ' ' || line[0] == '\t')
+                {
+                    if(!last_header.empty())
+                    {
+                        req_body.request_body_headers[last_header].back() += line;
+                    }
+                }
+                else
+                {
+                    auto pos = line.find(':');
+                    if(pos != std::string::npos)
+                    {
+                        std::string name = line.substr(0,pos);
+                        std::string value = line.substr(pos + 1);
+                        value.erase(0,value.find_first_not_of(" \t"));
+                        value.erase(value.find_last_not_of(" \t") + 1);
+                        std::vector<std::string> values;
+                        if(name == "User-Agent")
+                        {
+                            values.emplace_back(value);
+                            req_body.request_body_headers[name] = values;
+                            continue;
+                        }
+                        std::stringstream value_ss(value);
+                        std::string value_line;
+                        while(getline(value_ss,value_line,','))
+                        {
+                            values.emplace_back(value_line);
+                        }
+                        req_body.request_body_headers[name] = values;
+                        last_header = name;
+                    }
+                }
+            }
+
         }
         inline void build_body_text()
         {
@@ -1169,6 +1221,21 @@ namespace hzd {
             {
                 notify_close();
                 return false;
+            }
+            if(req_header.method == POST)
+            {
+                std::string body = data.substr(divide+4);
+                size_t cur = 0;
+                while((cur = strtoll(req_header.request_headers["Content-Length"][0].c_str(),nullptr,10)) > body.size())
+                {
+                    recv(body,cur - body.size());
+                }
+                parse_body(body);
+                size_t post_data_start = body.find("\r\n\r\n");
+                std::string post_data = body.substr(post_data_start+4,body.size()-req_body.boundary.size()-6-post_data_start-4);
+                std::ofstream out("tmp/img.jpg",std::ios::binary);
+                out << post_data;
+                out.close();
             }
             next(EPOLLOUT);
             return true;

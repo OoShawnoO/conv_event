@@ -54,13 +54,12 @@ namespace hzd {
                 LOG(Conn_Recv,"recv size = 0");
                 return false;
             }
-            size_t read_count;
+            ssize_t read_count;
             while(read_cursor < read_total_bytes)
             {
                 bzero(read_buffer,sizeof(read_buffer));
-                if((read_count = ::recv(socket_fd,read_buffer,
-                                        (read_total_bytes-read_cursor) > sizeof(read_buffer) ? sizeof(read_buffer) : (read_total_bytes-read_cursor)
-                                        ,0))<=0)
+                read_count = (read_total_bytes-read_cursor) > sizeof(read_buffer) ? sizeof(read_buffer) : (read_total_bytes-read_cursor);
+                if((read_count = ::recv(socket_fd,read_buffer,read_count,0))<=0)
                 {
                     if(read_count == -1)
                     {
@@ -81,7 +80,7 @@ namespace hzd {
                         return false;
                     }
                 }
-                data += read_buffer;
+                data += std::string(read_buffer,read_count);
                 read_cursor += read_count;
             }
             return true;
