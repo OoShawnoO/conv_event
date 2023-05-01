@@ -545,6 +545,15 @@ namespace hzd {
         struct request_body{
             std::string boundary;
             std::unordered_map<std::string,std::vector<std::string>> request_body_headers;
+            std::unordered_map<std::string,std::string> form;
+            std::unordered_map<std::string,std::pair<std::string,std::string>> files;
+            void clear()
+            {
+                boundary.clear();
+                request_body_headers.clear();
+                form.clear();
+                files.clear();
+            }
         } req_body;
 
         struct response_header
@@ -867,8 +876,8 @@ namespace hzd {
                     {
                         std::string name = line.substr(0,pos);
                         std::string value = line.substr(pos + 1);
-                        value.erase(0,value.find_first_not_of(" \t"));
-                        value.erase(value.find_last_not_of(" \t") + 1);
+                        value.erase(0,value.find_first_not_of(' '));
+                        value.erase(value.find_last_not_of(' ') + 1);
                         std::vector<std::string> values;
                         if(name == "User-Agent")
                         {
@@ -891,6 +900,7 @@ namespace hzd {
         }
         bool parse_body(const std::string& body)
         {
+            req_body.clear();
             size_t boundary_end = body.find("\r\n");
             req_body.boundary = body.substr(0,boundary_end);
             std::stringstream ss(body.substr(boundary_end + 2));
@@ -914,27 +924,33 @@ namespace hzd {
                     {
                         std::string name = line.substr(0,pos);
                         std::string value = line.substr(pos + 1);
-                        value.erase(0,value.find_first_not_of(" \t"));
-                        value.erase(value.find_last_not_of(" \t") + 1);
-                        std::vector<std::string> values;
-                        if(name == "User-Agent")
+                        value.erase(0,value.find_first_not_of(' '));
+                        value.erase(value.find_last_not_of(' ') + 1);
+
+                        size_t form_type_line = value.find_first_of(';');
+                        std::vector<std::string> values{value.substr(0,form_type_line)};
+
+                        size_t name_line = value.find("name=");
+                        size_t filename_line = value.find("filename=");
+                        if(name_line != std::string::npos)
                         {
-                            values.emplace_back(value);
-                            req_body.request_body_headers[name] = values;
-                            continue;
+                            size_t post_data_start = body.find("\r\n\r\n");
+                            std::string post_data = body.substr(post_data_start+4,body.size()-req_body.boundary.size()-6-post_data_start-4);
+                            req_body.files.emplace(std::pair<std::string,std::pair<std::string,std::string>>
+                                    {
+                                        value.substr(name_line+6,value.find('\"',name_line+6)-name_line-6),
+                                        std::pair<std::string,std::string>{
+                                            value.substr(filename_line+10,value.find('\"',filename_line+10)-filename_line-10),
+                                            post_data
+                                        }
+                                    });
                         }
-                        std::stringstream value_ss(value);
-                        std::string value_line;
-                        while(getline(value_ss,value_line,','))
-                        {
-                            values.emplace_back(value_line);
-                        }
+
                         req_body.request_body_headers[name] = values;
                         last_header = name;
                     }
                 }
             }
-
         }
         inline void build_body_text()
         {
@@ -1233,11 +1249,6 @@ namespace hzd {
                     recv(body,cur - body.size());
                 }
                 parse_body(body);
-                size_t post_data_start = body.find("\r\n\r\n");
-                std::string post_data = body.substr(post_data_start+4,body.size()-req_body.boundary.size()-6-post_data_start-4);
-                std::ofstream out("resource/static/tmp/img.jpg",std::ios::binary);
-                out << post_data;
-                out.close();
             }
             next(EPOLLOUT);
             return true;
