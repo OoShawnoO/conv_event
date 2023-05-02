@@ -929,23 +929,24 @@ namespace hzd {
 
                         size_t form_type_line = value.find_first_of(';');
                         std::vector<std::string> values{value.substr(0,form_type_line)};
-
-                        size_t name_line = value.find("name=");
-                        size_t filename_line = value.find("filename=");
-                        if(name_line != std::string::npos)
+                        if(req_header.request_headers["Content-Type"][0].find("multipart/form-data") != std::string::npos)
                         {
-                            size_t post_data_start = body.find("\r\n\r\n");
-                            std::string post_data = body.substr(post_data_start+4,body.size()-req_body.boundary.size()-6-post_data_start-4);
-                            req_body.files.emplace(std::pair<std::string,std::pair<std::string,std::string>>
-                                    {
-                                        value.substr(name_line+6,value.find('\"',name_line+6)-name_line-6),
-                                        std::pair<std::string,std::string>{
-                                            value.substr(filename_line+10,value.find('\"',filename_line+10)-filename_line-10),
-                                            post_data
-                                        }
-                                    });
+                            size_t name_line = value.find("name=");
+                            size_t filename_line = value.find("filename=");
+                            if(name_line != std::string::npos)
+                            {
+                                size_t post_data_start = body.find("\r\n\r\n");
+                                std::string post_data = body.substr(post_data_start+4,body.size()-req_body.boundary.size()-6-post_data_start-4);
+                                req_body.files.emplace(std::pair<std::string,std::pair<std::string,std::string>>
+                                                               {
+                                                                       value.substr(name_line+6,value.find('\"',name_line+6)-name_line-6),
+                                                                       std::pair<std::string,std::string>{
+                                                                               value.substr(filename_line+10,value.find('\"',filename_line+10)-filename_line-10),
+                                                                               post_data
+                                                                       }
+                                                               });
+                            }
                         }
-
                         req_body.request_body_headers[name] = values;
                         last_header = name;
                     }
