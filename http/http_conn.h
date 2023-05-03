@@ -620,22 +620,56 @@ namespace hzd {
             virtual bool method_options(http_conn* c) { return c->method_not_allow(); }
             virtual bool method_connect(http_conn* c) { return c->method_not_allow(); }
         };
-        void redirect(std::string url)
+        bool redirect(std::string url)
         {
-            res_header.status = http_Status::Temporary_Redirect;
+            res_header.status = http_Status::See_Other;
             res_header.response_headers["Location"] = std::move(url);
-            if(!send_response_header()) {return;}
+            if(!send_response_header()) {return false;}
             http_1_0_close();
+            return true;
         }
-        void render(std::string file_path)
+        bool render(std::string file_path)
         {
             req_header.url = std::move(file_path);
             load_file();
-            if(!send_response_header()) { return; }
+            if(!send_response_header()) { return false; }
             write_total_bytes = res_body.file_stat.st_size;
             write_cursor = 0;
-            if(!send_response_body()) { return; }
+            if(!send_response_body()) { return false; }
             http_1_0_close();
+            return true;
+        }
+        bool forward(std::string  url,http_Methods method = GET){
+            switch(method)
+            {
+                case GET : {
+                    return routers[url]->method_get(this);
+                }
+                case POST : {
+                    return routers[url]->method_post(this);
+                }
+                case PUT : {
+                    return routers[url]->method_put(this);
+                }
+                case PATCH : {
+                    return routers[url]->method_patch(this);
+                }
+                case DELETE : {
+                    return routers[url]->method_delete(this);
+                }
+                case TRACE : {
+                    return routers[url]->method_trace(this);
+                }
+                case HEAD : {
+                    return routers[url]->method_head(this);
+                }
+                case OPTIONS : {
+                    return routers[url]->method_options(this);
+                }
+                case CONNECT : {
+                    return routers[url]->method_connect(this);
+                }
+            }
         }
         bool send_str(const std::string& str,const std::string& type = "text/html"){
             res_header.response_headers["Content-Length"] = std::to_string(str.size());
@@ -692,10 +726,10 @@ namespace hzd {
             if(!f) return;
             _register_filter(std::forward<filter*>(f));
         }
-    private:
+    protected:
 
         const static std::string base_path;
-        
+
         static std::unordered_map<std::string,router*> routers;
         static std::unordered_map<std::string,std::shared_ptr<filter::node>> filters;
 
@@ -770,7 +804,7 @@ namespace hzd {
         }
 
 
-
+    private:
         bool send_response_body_base()
         {
             signal(SIGPIPE,SIG_IGN);
@@ -901,36 +935,37 @@ namespace hzd {
         bool parse_body(const std::string& body)
         {
             req_body.clear();
-            size_t boundary_end = body.find("\r\n");
-            req_body.boundary = body.substr(0,boundary_end);
-            std::stringstream ss(body.substr(boundary_end + 2));
-            std::string line;
-            std::string last_header;
-            while(getline(ss,line))
-            {
-                if(line.empty()) break;
-                line.erase(line.end()-1);
-                if(line[0] == ' ' || line[0] == '\t')
-                {
-                    if(!last_header.empty())
-                    {
-                        req_body.request_body_headers[last_header].back() += line;
-                    }
-                }
-                else
-                {
-                    auto pos = line.find(':');
-                    if(pos != std::string::npos)
-                    {
-                        std::string name = line.substr(0,pos);
-                        std::string value = line.substr(pos + 1);
-                        value.erase(0,value.find_first_not_of(' '));
-                        value.erase(value.find_last_not_of(' ') + 1);
 
-                        size_t form_type_line = value.find_first_of(';');
-                        std::vector<std::string> values{value.substr(0,form_type_line)};
-                        if(req_header.request_headers["Content-Type"][0].find("multipart/form-data") != std::string::npos)
+            if(req_header.request_headers["Content-Type"][0].find("multipart/form-data") != std::string::npos)
+            {
+                size_t boundary_end = body.find("\r\n");
+                req_body.boundary = body.substr(0,boundary_end);
+                std::stringstream ss(body.substr(boundary_end + 2));
+                std::string line;
+                std::string last_header;
+                while(getline(ss,line))
+                {
+                    if(line.empty()) break;
+                    line.erase(line.end()-1);
+                    if(line[0] == ' ' || line[0] == '\t')
+                    {
+                        if(!last_header.empty())
                         {
+                            req_body.request_body_headers[last_header].back() += line;
+                        }
+                    }
+                    else
+                    {
+                        auto pos = line.find(':');
+                        if(pos != std::string::npos)
+                        {
+                            std::string name = line.substr(0,pos);
+                            std::string value = line.substr(pos + 1);
+                            value.erase(0,value.find_first_not_of(' '));
+                            value.erase(value.find_last_not_of(' ') + 1);
+
+                            size_t form_type_line = value.find_first_of(';');
+                            std::vector<std::string> values{value.substr(0,form_type_line)};
                             size_t name_line = value.find("name=");
                             size_t filename_line = value.find("filename=");
                             if(name_line != std::string::npos)
@@ -946,10 +981,23 @@ namespace hzd {
                                                                        }
                                                                });
                             }
+                            req_body.request_body_headers[name] = values;
+                            last_header = name;
                         }
-                        req_body.request_body_headers[name] = values;
-                        last_header = name;
                     }
+                }
+            }
+            else if(req_header.request_headers["Content-Type"][0].find("application/x-www-form-urlencoded") != std::string::npos)
+            {
+                std::stringstream ss(body);
+                std::string line;
+                while(getline(ss,line,'&'))
+                {
+                    if(line.empty()) break;
+                    size_t equal_pos = line.find('=');
+                    std::string key = line.substr(0,equal_pos);
+                    std::string value = line.substr(equal_pos+1);
+                    req_body.form[key] = value;
                 }
             }
         }
@@ -987,7 +1035,7 @@ namespace hzd {
             res_header.status = http_Status::Method_Not_Allowed;
             build_body_text();
             res_header.response_headers["Content-Length"] = std::to_string(res_body.body_text.size());
-            if(!send_response_header()) { return false; };
+            if(!send_response_header()) { return false; }
             if(!send_response_body()) { return false; }
             http_1_0_close();
             return true;
