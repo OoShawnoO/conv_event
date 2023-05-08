@@ -538,6 +538,7 @@ namespace hzd {
             void clear()
             {
                 url.clear();
+                parameters.clear();
                 request_headers.clear();
             }
         } req_header;
@@ -855,12 +856,10 @@ namespace hzd {
                         if(start == std::string::npos)
                         {
                             req_header.url = url;
-                            if(req_header.url[req_header.url.size()-1] == '/') req_header.url.erase(req_header.url.size()-1);
                         }
                         else
                         {
                             req_header.url = url.substr(0,start);
-                            if(req_header.url[req_header.url.size()-1] == '/') req_header.url.erase(req_header.url.size()-1);
                             start += 1;
                             size_t end = start;
                             while(end != std::string::npos)
