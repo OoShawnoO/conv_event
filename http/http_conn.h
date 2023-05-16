@@ -985,6 +985,7 @@ namespace hzd {
                         }
                     }
                 }
+                return true;
             }
             else if(req_header.request_headers["Content-Type"][0].find("application/x-www-form-urlencoded") != std::string::npos)
             {
@@ -998,7 +999,9 @@ namespace hzd {
                     std::string value = line.substr(equal_pos+1);
                     req_body.form[key] = value;
                 }
+                return true;
             }
+            return false;
         }
         inline void build_body_text()
         {
