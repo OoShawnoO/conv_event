@@ -1114,16 +1114,20 @@ namespace hzd {
             return true;
         }
 
+#define CONV_CHECK_ROUTER(_method) do{      \
+    auto r = routers.at(req_header.url);    \
+        if(!r->allow(req_header.method))    \
+        {                                   \
+            throw std::exception();         \
+        }                                   \
+        return r->_method(this);            \
+    }while(0)
+
         virtual bool process_get()
         {
             try
             {
-                auto r = routers.at(req_header.url);
-                if(!r->allow(req_header.method))
-                {
-                    throw std::exception();
-                }
-                return r->method_get(this);
+                CONV_CHECK_ROUTER(method_get);
             }
             catch(...)
             {
@@ -1140,12 +1144,7 @@ namespace hzd {
         {
             try
             {
-                auto r = routers.at(req_header.url);
-                if(!r->allow(req_header.method))
-                {
-                    throw std::exception();
-                }
-                return r->method_post(this);
+                CONV_CHECK_ROUTER(method_post);
             }
             catch(...) 
             {
@@ -1157,12 +1156,7 @@ namespace hzd {
         {
             try
             {
-                auto r = routers.at(req_header.url);
-                if(!r->allow(req_header.method))
-                {
-                    throw std::exception();
-                }
-                return r->method_put(this);
+                CONV_CHECK_ROUTER(method_put);
             }
             catch(...) 
             {
@@ -1174,12 +1168,7 @@ namespace hzd {
         {
             try
             {
-                auto r = routers.at(req_header.url);
-                if(!r->allow(req_header.method))
-                {
-                    throw std::exception();
-                }
-                return r->method_patch(this);
+                CONV_CHECK_ROUTER(method_patch);
             }
             catch(...)
             {
@@ -1191,12 +1180,7 @@ namespace hzd {
         {
             try
             {
-                auto r = routers.at(req_header.url);
-                if(!r->allow(req_header.method))
-                {
-                    throw std::exception();
-                }
-                return r->method_delete(this);
+                CONV_CHECK_ROUTER(method_delete);
             }
             catch(...)
             {
@@ -1208,12 +1192,7 @@ namespace hzd {
         {
             try
             {
-                auto r = routers.at(req_header.url);
-                if(!r->allow(req_header.method))
-                {
-                    throw std::exception();
-                }
-                return r->method_trace(this);
+                CONV_CHECK_ROUTER(method_trace);
             }
             catch(...)
             {
@@ -1225,12 +1204,7 @@ namespace hzd {
         {
             try
             {
-                auto r = routers.at(req_header.url);
-                if(!r->allow(req_header.method))
-                {
-                    throw std::exception();
-                }
-                return r->method_head(this);
+                CONV_CHECK_ROUTER(method_head);
             }
             catch(...)
             {
@@ -1242,12 +1216,7 @@ namespace hzd {
         {
             try
             {
-                auto r = routers.at(req_header.url);
-                if(!r->allow(req_header.method))
-                {
-                    throw std::exception();
-                }
-                return r->method_options(this);
+                CONV_CHECK_ROUTER(method_options);
             }
             catch(...)
             {
@@ -1259,12 +1228,7 @@ namespace hzd {
         {
             try
             {
-                auto r = routers.at(req_header.url);
-                if(!r->allow(req_header.method))
-                {
-                    throw std::exception();
-                }
-                return r->method_connect(this);
+                CONV_CHECK_ROUTER(method_connect);
             }
             catch(...)
             {

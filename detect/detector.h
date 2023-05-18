@@ -42,6 +42,24 @@ namespace hzd {
             return tensor_img;
         }
 
+        static torch::Tensor load_img_bytes(const std::string& img_bytes)
+        {
+            std::vector<unsigned char> data(img_bytes.begin(),img_bytes.end());
+            auto img = cv::imdecode(cv::Mat(data),cv::IMREAD_COLOR);
+            cv::cvtColor(img,img,cv::COLOR_BGR2RGB);
+            cv::Mat transformed_img;
+            cv::resize(img,transformed_img,cv::Size(224,224));
+            torch::Tensor tensor_img = torch::from_blob(transformed_img.data,{
+                    transformed_img.rows,transformed_img.cols,3
+            },torch::kByte);
+            tensor_img = tensor_img.permute({2,0,1});
+            tensor_img = tensor_img.toType(torch::kFloat);
+            tensor_img = tensor_img.div(255);
+            tensor_img = tensor_img.unsqueeze(0);
+            tensor_img = tensor_img.to(torch::kCPU);
+            return tensor_img;
+        }
+
         std::pair<std::string,float> predict(const std::string& img_path)
         {
             torch::Tensor tensor_img = load_img(img_path);
@@ -50,6 +68,15 @@ namespace hzd {
             int index = output.argmax(1).item<int>();
             return {items[std::to_string(index)],percent[0][index].item<float>()*100};
         };
+
+        std::pair<std::string,float> predict_bytes(const std::string& img_data)
+        {
+            torch::Tensor tensor_img = load_img_bytes(img_data);
+            torch::Tensor output = module.forward({tensor_img}).toTensor();
+            auto percent = output.softmax(1);
+            int index = output.argmax(1).item<int>();
+            return {items[std::to_string(index)],percent[0][index].item<float>()*100};
+        }
 
         std::vector<std::pair<std::string,float>> predict_topk(const std::string& img_path,unsigned int k)
         {
