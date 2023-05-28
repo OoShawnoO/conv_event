@@ -1320,8 +1320,8 @@ namespace hzd {
     std::unordered_map<std::string,router*> http_conn::routers;
     std::unordered_map<std::string,std::shared_ptr<filter::node>> http_conn::filters { {"/",std::make_shared<filter::node>()} };
 
-    using http_multi = conv_multi<http_conn>;
-    using http_single = conv_single<http_conn>;
+    using conv_http_multi = conv_multi<http_conn>;
+    using conv_http_single = conv_single<http_conn>;
 }
 using namespace hzd;
 
