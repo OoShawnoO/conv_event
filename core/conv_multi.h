@@ -5,27 +5,23 @@
 #include "include/acceptor.h"           /* acceptor */
 #include <atomic>                       /* atomic */
 #include "include/configure.h"          /* configure */
+#include "include/conv_base.h"          /* conv_base */
 
 namespace hzd
 {
+
     template <class T>
-    class conv_multi{
+    class conv_multi : public conv_base{
         friend class reactor<T>;
         friend class acceptor<T>;
     protected:
-        bool ET{false};
-        bool one_shot{true};
         bool _thread_pool{false};
-        std::string ip;
-        short port;
-        acceptor<T> _acceptor;
         bool run{true};
+        acceptor<T> _acceptor;
         connpool<T>* conn_pool{nullptr};
-        size_t max_connect_count{200000};
     public:
         std::vector<reactor<T>> reactors;
-        std::atomic<int> current_connect_count{0};
-        explicit conv_multi(std::string _ip = "",short _port = 0,int reactor_count = 4):ip(std::move(_ip)),port(_port)
+        explicit conv_multi(int reactor_count = 4)
         {
             configure& conf = configure::get_config();
             ip = (const char*)conf.configs["ip"];
@@ -51,7 +47,7 @@ namespace hzd
         {
             close();
         }
-        void close()
+        void close() override
         {
             run = false;
             reactor<T>::set_run_false();
@@ -64,7 +60,7 @@ namespace hzd
          * @param None
          * @retval None
          */
-        void enable_addr_reuse()
+        void enable_addr_reuse() override
         {
             _acceptor.enable_addr_reuse();
         }
@@ -74,9 +70,9 @@ namespace hzd
           * @param None
           * @retval None
           */
-        void disable_addr_reuse()
+        void disable_addr_reuse() override
         {
-            _acceptor.disable_add_reuse;
+            _acceptor.disable_add_reuse();
         }
         /**
           * @brief enable port reuse
@@ -84,7 +80,7 @@ namespace hzd
           * @param None
           * @retval None
           */
-        void enable_port_reuse()
+        void enable_port_reuse() override
         {
             _acceptor.enable_port_reuse();
         }
@@ -94,7 +90,7 @@ namespace hzd
           * @param None
           * @retval None
           */
-        void disable_port_reuse()
+        void disable_port_reuse() override
         {
             _acceptor.disable_port_reuse();
         }
@@ -105,7 +101,7 @@ namespace hzd
           * @param max_process_count max process count
           * @retval None
           */
-        void enable_multi_thread()
+        void enable_multi_thread() override
         {
             _thread_pool = true;
         }
@@ -115,7 +111,7 @@ namespace hzd
           * @param None
           * @retval None
           */
-        void disable_multi_thread()
+        void disable_multi_thread() override
         {
             _thread_pool = false;
         }
@@ -125,7 +121,7 @@ namespace hzd
         * @param None
         * @retval None
         */
-        void enable_object_pool(size_t size = 200)
+        void enable_object_pool(size_t size) override
         {
             if(!conn_pool)
             {
@@ -138,7 +134,7 @@ namespace hzd
         * @param None
         * @retval None
         */
-        void disable_object_pool()
+        void disable_object_pool() override
         {
             delete conn_pool;
             conn_pool = nullptr;
@@ -149,35 +145,35 @@ namespace hzd
           * @param None
           * @retval None
           */
-        void enable_et() { ET = true; }
+        void enable_et() override { ET = true; }
         /**
           * @brief disable et model
           * @note None
           * @param None
           * @retval None
           */
-        void disable_et() { ET = false; }
+        void disable_et() override { ET = false; }
         /**
           * @brief enable one shot trigger
           * @note None
           * @param None
           * @retval None
           */
-        void enable_one_shot() { one_shot = true; }
+        void enable_one_shot() override { one_shot = true; }
         /**
           * @brief disable one shot trigger
           * @note None
           * @param None
           * @retval None
           */
-        void disable_one_shot() { one_shot = false; }
+        void disable_one_shot() override { one_shot = false; }
         /**
           * @brief set max events count
           * @note None
           * @param size size
           * @retval None
           */
-        void set_max_events_count(int size)
+        void set_max_events_count(int size) override
         {
             if(size >= 0)
             {
@@ -190,14 +186,14 @@ namespace hzd
           * @param size size
           * @retval None
           */
-        void set_max_connect_count(int size){if(size >= 0) max_connect_count = size;}
+        void set_max_connect_count(int size) override{if(size >= 0) max_connect_count = size;}
         /**
           * @brief set listen queue size
           * @note None
           * @param size size
           * @retval None
           */
-        void set_listen_queue_count(int size){if(size >= 0) _acceptor.set_listen_queue_count(size);}
+        void set_listen_queue_count(int size) override{if(size >= 0) _acceptor.set_listen_queue_count(size);}
 
         void wait(int time_out=5)
         {

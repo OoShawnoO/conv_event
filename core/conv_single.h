@@ -4,11 +4,12 @@
 #include "include/conn.h"               /* conn */
 #include "include/threadpool.h"         /* thread_pool */
 #include "include/configure.h"          /* configure */
+#include "include/conv_base.h"          /* conv base */
 #include <csignal>                      /* signal */
 
 namespace hzd {
     template<class T>
-    class conv_single {
+    class conv_single : public conv_base{
         /* static assert*/
         #if __cplusplus > 201703L
         static_assert(std::is_base_of_v<conn,T>,"must derived from class hzd::conn.");
@@ -122,32 +123,25 @@ namespace hzd {
 
     protected:
         /* protected member variable */
-        bool ET{false};
-        bool one_shot{false};
-        std::string ip;
-        short port;
         int socket_fd{-1};
         sockaddr_in my_addr{};
         int listen_queue_count{1024};
         int epoll_fd{-1};
         epoll_event* events{nullptr};
         int max_events_count{4096};
-        int max_connect_count{200000};
-        int current_connect_count{0};
         std::unordered_map<int,T*> connects;
         threadpool<T>* thread_pool{nullptr};
         connpool<T>* conn_pool{nullptr};
         lock_queue<int>* close_queue{nullptr};
     public:
         /* Constructor */
-        explicit conv_single(std::string _ip = "",short _port = 0,bool _one_shot = false,bool ET_ = false)
-        :ip(std::move(_ip)),port(_port),one_shot(_one_shot),ET(ET_)
+        explicit conv_single()
         {
             configure& conf = configure::get_config();
             ip = (const char*)conf.configs["ip"];
             port = conf.configs["port"];
             max_connect_count = (int32_t)conf.configs["max_connect_count"];
-            if(conf.configs["multi_thread"]) enable_multi_thread();
+            if(conf.configs["multi_thread"]) enable_multi_thread(conf.configs["thread_count"],100000);
             if(conf.configs["object_pool"]) enable_object_pool((int32_t)conf.configs["object_pool_size"]);
             one_shot = conf.configs["one_shot"];
             ET = conf.configs["et"];
@@ -210,7 +204,7 @@ namespace hzd {
           * @param None
           * @retval None
           */
-        void close()
+        void close() override
         {
             if(socket_fd != -1)
             {
@@ -241,7 +235,7 @@ namespace hzd {
           * @param None
           * @retval None
           */
-        void enable_addr_reuse()
+        void enable_addr_reuse() override
         {
             int opt = 1;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEADDR,(const void*)&opt,sizeof(opt));
@@ -252,7 +246,7 @@ namespace hzd {
           * @param None
           * @retval None
           */
-        void disable_addr_reuse()
+        void disable_addr_reuse() override
         {
             int opt = 0;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEADDR,(const void*)&opt,sizeof(opt));
@@ -263,7 +257,7 @@ namespace hzd {
           * @param None
           * @retval None
           */
-        void enable_port_reuse()
+        void enable_port_reuse() override
         {
             int opt = 1;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEPORT,(const void*)&opt,sizeof(opt));
@@ -274,7 +268,7 @@ namespace hzd {
           * @param None
           * @retval None
           */
-        void disable_port_reuse()
+        void disable_port_reuse() override
         {
             int opt = 0;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEPORT,(const void*)&opt,sizeof(opt));
@@ -286,7 +280,7 @@ namespace hzd {
           * @param max_process_count max process count
           * @retval None
           */
-        void enable_multi_thread(int thread_count = 8,int max_process_count = 10000)
+        void enable_multi_thread(int thread_count,int max_process_count) override
         {
             if(!thread_pool)
             {
@@ -299,7 +293,7 @@ namespace hzd {
           * @param None
           * @retval None
           */
-        void disable_multi_thread()
+        void disable_multi_thread() override
         {
             delete thread_pool;
             thread_pool = nullptr;
@@ -310,7 +304,7 @@ namespace hzd {
         * @param None
         * @retval None
         */
-        void enable_object_pool(size_t size = 200)
+        void enable_object_pool(size_t size) override
         {
             if(!conn_pool)
             {
@@ -323,7 +317,7 @@ namespace hzd {
         * @param None
         * @retval None
         */
-        void disable_object_pool()
+        void disable_object_pool() override
         {
             delete conn_pool;
             conn_pool = nullptr;
@@ -334,49 +328,49 @@ namespace hzd {
           * @param None
           * @retval None
           */
-        void enable_et() { ET = true; }
+        void enable_et() override { ET = true; }
         /**
           * @brief disable et model
           * @note None
           * @param None
           * @retval None
           */
-        void disable_et() { ET = false; }
+        void disable_et() override { ET = false; }
         /**
           * @brief enable one shot trigger
           * @note None
           * @param None
           * @retval None
           */
-        void enable_one_shot() { one_shot = true; }
+        void enable_one_shot() override { one_shot = true; }
         /**
           * @brief disable one shot trigger
           * @note None
           * @param None
           * @retval None
           */
-        void disable_one_shot() { one_shot = false; }
+        void disable_one_shot() override { one_shot = false; }
         /**
           * @brief set max events count
           * @note None
           * @param size size
           * @retval None
           */
-        void set_max_events_count(int size){if(size >= 0) max_events_count = size;}
+        void set_max_events_count(int size) override {if(size >= 0) max_events_count = size;}
         /**
           * @brief set max connection count
           * @note None
           * @param size size
           * @retval None
           */
-        void set_max_connect_count(int size){if(size >= 0) max_connect_count = size;}
+        void set_max_connect_count(int size) override {if(size >= 0) max_connect_count = size;}
         /**
           * @brief set listen queue size
           * @note None
           * @param size size
           * @retval None
           */
-        void set_listen_queue_count(int size){if(size >= 0) listen_queue_count = size;}
+        void set_listen_queue_count(int size) override {if(size >= 0) listen_queue_count = size;}
         /**
           * @brief start epoll
           * @note None
