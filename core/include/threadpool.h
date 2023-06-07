@@ -44,8 +44,8 @@ namespace hzd
     private:
         int thread_count;
         int max_process_count;
-        lock_queue<T*> process_pool;
-        std::thread* threads;
+        lock_queue<T*> process_pool{};
+        std::vector<std::shared_ptr<std::thread>> threads;
         #if __cplusplus > 201703L
         std::counting_semaphore<0> sem{0};
         #else
@@ -61,25 +61,15 @@ namespace hzd
                 LOG(Out_Of_Bound,"threads count or max process count <= 0");
                 exit(-1);
             }
-            threads = new std::thread[thread_count];
-            if(!threads)
-            {
-                LOG(Bad_Malloc,"threads bad new");
-                exit(-1);
-            }
             for(int i=0;i<thread_count;i++) {
-                threads[i] = std::thread(work, this);
-                if (!&threads[i]) {
-                    LOG(Bad_Malloc, "threads[i] bad new");
-                    exit(-1);
-                }
-                threads[i].detach();
+                std::shared_ptr<std::thread> t = std::make_shared<std::thread>(work,this);
+                threads.emplace_back(t);
+                t->detach();
             }
         }
         ~threadpool()
         {
             stop = true;
-            delete []threads;
         }
         static void* work(void* arg)
         {
