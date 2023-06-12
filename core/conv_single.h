@@ -138,22 +138,28 @@ namespace hzd {
         explicit conv_single()
         {
             configure& conf = configure::get_config();
-            ip = (const char*)conf.configs["ip"];
-            port = conf.configs["port"];
-            max_connect_count = (int32_t)conf.configs["max_connect_count"];
-            if(conf.configs["multi_thread"]) enable_multi_thread(conf.configs["thread_count"],100000);
-            if(conf.configs["object_pool"]) enable_object_pool((int32_t)conf.configs["object_pool_size"]);
-            one_shot = conf.configs["one_shot"];
-            ET = conf.configs["et"];
-            max_events_count = conf.configs["max_events_count"];
-            listen_queue_count = conf.configs["listen_queue_count"];
+            ip = (const char*)conf.require("ip");
+            port = conf.require("port");
+            max_connect_count = (int32_t)conf.require("max_connect_count");
+            if(conf["multi_thread"].type != JSON_NULL)
+                enable_multi_thread();
+            if(conf["object_pool"].type != JSON_NULL)
+                enable_object_pool((int32_t)conf.require("object_pool_size"));
+            if(conf["one_shot"].type != JSON_NULL)
+                one_shot = conf["one_shot"];
+            if(conf["et"].type != JSON_NULL)
+                ET = conf["et"];
+            if(conf["max_events_count"].type != JSON_NULL)
+                max_events_count = conf["max_events_count"];
+            if(conf["listen_queue_count"])
+                listen_queue_count = conf["listen_queue_count"];
 
             _create_socket_();
             _prepare_socket_address_();
             signal(SIGPIPE,SIG_IGN);
 
-            if(conf.configs["port_reuse"]) enable_port_reuse();
-            if(conf.configs["address_reuse"]) enable_addr_reuse();
+            if(conf["port_reuse"].type != JSON_NULL && conf["port_reuse"]) enable_port_reuse();
+            if(conf["address_reuse"].type != JSON_NULL && conf["address_reuse"]) enable_addr_reuse();
 
             close_queue = new lock_queue<int>;
         }

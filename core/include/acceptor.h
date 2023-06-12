@@ -246,8 +246,8 @@ namespace hzd
             port = parent->port;
 
             configure& conf = configure::get_config();
-            listen_queue_count = conf.configs["listen_queue_count"];
-            max_event_count = conf.configs["max_events_count"];
+            listen_queue_count = conf["listen_queue_count"].type == JSON_NULL ? 1024 : (int32_t)conf["listen_queue_count"];
+            max_event_count = conf["max_events_count"].type == JSON_NULL ? 4096 : (int32_t)conf["max_events_count"];
 
             _create_socket_();
             _prepare_socket_address_();
