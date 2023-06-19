@@ -129,7 +129,7 @@ namespace hzd
         void init(conv_multi<T>* _parent)
         {
             configure& conf = configure::get_config();
-            max_events_count = conf.configs["max_events_count"];
+            max_events_count = conf["max_events_count"].type == JSON_NULL ? 4096 : (int32_t)max_events_count;
 
 
             parent = _parent;
@@ -138,7 +138,7 @@ namespace hzd
             if(parent->_thread_pool)
             {
                 if(!thread_pool)
-                    thread_pool = new threadpool<T>(conf.configs["thread_count"]);
+                    thread_pool = new threadpool<T>(conf["thread_count"].type == JSON_NULL ? 8 : (int32_t)conf["thread_count"]);
             }
             close_queue = new lock_queue<int>();
             conn_pool = parent->conn_pool;

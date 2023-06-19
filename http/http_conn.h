@@ -1316,7 +1316,7 @@ namespace hzd {
     using router = http_conn::router;
     using filter = http_conn::filter;
     using hzd::http_Methods;
-    const std::string http_conn::base_path = configure::get_config().configs["resource_path"];
+    const std::string http_conn::base_path = configure::get_config().require("resource_path");
     std::unordered_map<std::string,router*> http_conn::routers;
     std::unordered_map<std::string,std::shared_ptr<filter::node>> http_conn::filters { {"/",std::make_shared<filter::node>()} };
 

@@ -12,11 +12,31 @@ namespace hzd {
                 exit(-1);
             }
         }
-    public:
         json configs;
+    public:
 
         configure(const configure& ) = delete;
         configure& operator=(const configure&) = delete;
+
+        json_val& require(const std::string & key)
+        {
+            if(configs.has_key(key))
+                return configs[key];
+            else
+                throw std::exception();
+        }
+
+        json_val operator[](const std::string & key)
+        {
+            if(configs.has_key(key))
+            {
+                return configs[key];
+            }
+            else
+            {
+                return nullptr;
+            }
+        }
 
         static configure& get_config()
         {
