@@ -383,6 +383,9 @@ namespace hzd {
             _prepare_epoll_event_();
             _listen_();
             _register_listen_fd_();
+
+            std::cout << "[ INFO ] socket already listening at " << ip << ":" << port << std::endl;
+
             int ret;
             int cur_fd;
             while(true)

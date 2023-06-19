@@ -261,6 +261,8 @@ namespace hzd
             _register_listen_fd_();
             _listen_();
 
+            std::cout << "[ INFO ] socket already listening at " << ip << ":" << port << std::endl;
+
             int ret;
             run = true;
             while(run)
