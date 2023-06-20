@@ -10,6 +10,7 @@
 #include <csignal>
 #include "ErrorLog/ErrorLog.h"
 #include "utils.h"
+#include <unistd.h>
 
 namespace hzd {
 

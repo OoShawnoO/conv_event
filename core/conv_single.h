@@ -141,8 +141,10 @@ namespace hzd {
             ip = (const char*)conf.require("ip");
             port = conf.require("port");
             max_connect_count = (int32_t)conf.require("max_connect_count");
-            if(conf["multi_thread"].type != JSON_NULL)
-                enable_multi_thread();
+            if(conf["multi_thread"].type != JSON_NULL) {
+                int thread_count = (int32_t)conf.require("thread_count");
+                enable_multi_thread(thread_count,40000);
+            }
             if(conf["object_pool"].type != JSON_NULL)
                 enable_object_pool((int32_t)conf.require("object_pool_size"));
             if(conf["one_shot"].type != JSON_NULL)
@@ -151,7 +153,7 @@ namespace hzd {
                 ET = conf["et"];
             if(conf["max_events_count"].type != JSON_NULL)
                 max_events_count = conf["max_events_count"];
-            if(conf["listen_queue_count"])
+            if(conf["listen_queue_count"].type != JSON_NULL)
                 listen_queue_count = conf["listen_queue_count"];
 
             _create_socket_();
