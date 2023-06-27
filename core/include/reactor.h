@@ -38,7 +38,6 @@ namespace hzd
                 events = new epoll_event[max_events_count];
             if(!events)
             {
-                LOG(Bad_Malloc,"epoll_event bad new");
                 close();
                 exit(-1);
             }
@@ -46,7 +45,6 @@ namespace hzd
                 epoll_fd = epoll_create(1024);
             if(epoll_fd < 0)
             {
-                LOG(Epoll_Create,"epoll create error");
                 close();
                 perror("epoll_create");
                 exit(-1);
@@ -168,7 +166,6 @@ namespace hzd
                 else if(ret < 0)
                 {
                     if(errno == EINTR) { continue; }
-                    LOG(Epoll_Wait,"epoll wait error");
                     break;
                 }
                 else
@@ -243,8 +240,6 @@ namespace hzd
                             {
                                 if(!connects[cur_fd]->process())
                                 {
-                                    LOG_FMT(Epoll_Write,"epoll write error","client IP=%s client Port = %u",
-                                            inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
                                     CONNECTS_REMOVE_FD_REACTOR;
                                 }
                             }
@@ -260,16 +255,12 @@ namespace hzd
                             {
                                 if(!connects[cur_fd]->process())
                                 {
-                                    LOG_FMT(Epoll_Read,"epoll read error","client IP=%s client Port = %u",
-                                            inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
                                     CONNECTS_REMOVE_FD_REACTOR;
                                 }
                             }
                         }
                         else
                         {
-                            LOG_FMT(None,"unknown error","client IP=%s client Port = %u",
-                                    inet_ntoa(connects[cur_fd]->addr().sin_addr),ntohs(connects[cur_fd]->addr().sin_port));
                             CONNECTS_REMOVE_FD_REACTOR;
                         }
                     }

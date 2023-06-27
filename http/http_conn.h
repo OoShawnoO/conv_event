@@ -737,7 +737,6 @@ namespace hzd {
         static void _register_filter(filter* f)
         {
             if(f->url.size() < 2 || f->url[0] != '/' || f->url[f->url.size()-1] == '/') {
-                LOG_FMT(General_Error,"","拦截器注册错误 url = %s",f->url.c_str());
                 return;
             }
             auto cur = filters["/"];

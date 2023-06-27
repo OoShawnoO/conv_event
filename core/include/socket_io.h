@@ -8,7 +8,6 @@
 #include <sys/stat.h>           /* fstat */
 #include <sys/sendfile.h>
 #include <csignal>
-#include "ErrorLog/ErrorLog.h"
 #include "utils.h"
 #include <unistd.h>
 
@@ -35,7 +34,7 @@ namespace hzd {
                                         need_to_send > sizeof(write_buffer) ? sizeof(write_buffer) : need_to_send
                                         ,MSG_NOSIGNAL))<= 0)
                 {
-                    LOG(Conn_Send,"data send error");
+
                     return false;
                 }
                 write_cursor += send_count;
@@ -52,7 +51,6 @@ namespace hzd {
         {
             if(read_total_bytes <= 0)
             {
-                LOG(Conn_Recv,"recv size = 0");
                 return false;
             }
             ssize_t read_count;
@@ -68,7 +66,6 @@ namespace hzd {
                         {
                             return true;
                         }
-                        LOG(Conn_Recv,"data recv error");
                         return false;
                     }
                     else
@@ -111,13 +108,11 @@ namespace hzd {
                 write_cursor = 0;
                 if(write_total_bytes <= 1)
                 {
-                    LOG(Conn_Send,"send data = null");
                     return false;
                 }
                 header h{write_total_bytes};
                 if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
                 {
-                    LOG(Conn_Send,"header send error");
                     return false;
                 }
             }
@@ -139,13 +134,11 @@ namespace hzd {
                 write_cursor = 0;
                 if(write_total_bytes <= 1)
                 {
-                    LOG(Conn_Send,"send data = null");
                     return false;
                 }
                 header h{write_total_bytes};
                 if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
                 {
-                    LOG(Conn_Send,"header send error");
                     return false;
                 }
             }
@@ -160,13 +153,11 @@ namespace hzd {
                 write_cursor = 0;
                 if(write_total_bytes <= 1)
                 {
-                    LOG(Conn_Send,"send data = null");
                     return false;
                 }
                 header h{write_total_bytes};
                 if(::send(socket_fd,&h,HEADER_SIZE,0) <= 0)
                 {
-                    LOG(Conn_Send,"header send error");
                     return false;
                 }
             }
@@ -188,7 +179,6 @@ namespace hzd {
                 write_cursor = 0;
                 if(write_total_bytes <= 0)
                 {
-                    LOG(Conn_Send,"send data = null");
                     return false;
                 }
             }
@@ -203,7 +193,6 @@ namespace hzd {
                 write_cursor = 0;
                 if(write_total_bytes <= 0)
                 {
-                    LOG(Conn_Send,"send data = null");
                     return false;
                 }
             }
@@ -218,7 +207,6 @@ namespace hzd {
                 write_cursor = 0;
                 if(write_total_bytes <= 0)
                 {
-                    LOG(Conn_Send,"send data = null");
                     return false;
                 }
             }
@@ -266,7 +254,6 @@ namespace hzd {
                 header h{};
                 if(::recv(socket_fd,&h,HEADER_SIZE,0) <= 0)
                 {
-                    LOG(Conn_Recv,"recv header error");
                     return false;
                 }
                 read_total_bytes = h.size;

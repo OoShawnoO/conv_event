@@ -39,7 +39,6 @@ namespace hzd
             int temp_fd = socket(AF_INET,SOCK_STREAM,0);
             if(temp_fd < 0)
             {
-                LOG(Socket_Create,"socket create error");
                 close();
                 perror("socket");
                 exit(-1);
@@ -68,7 +67,6 @@ namespace hzd
         {
             if(bind(socket_fd,(sockaddr*)&my_addr,sizeof(my_addr)) < 0)
             {
-                LOG_FMT(Socket_Bind,"bind socket error","IP=%s,PORT=%u",ip.c_str(),port);
                 close();
                 perror("bind");
                 exit(-1);
@@ -84,7 +82,6 @@ namespace hzd
         {
             if(listen(socket_fd,listen_queue_count) < 0)
             {
-                LOG(Socket_Listen,"listen socket error");
                 close();
                 exit(-1);
             }
@@ -99,7 +96,6 @@ namespace hzd
         {
             if(epoll_add(epoll_fd,socket_fd,false,false,false) < 0)
             {
-                LOG(Epoll_Add,"epoll add error");
                 close();
                 perror("epoll_add");
                 exit(-1);
@@ -117,7 +113,6 @@ namespace hzd
                 event = new epoll_event[max_event_count];
             if(!event)
             {
-                LOG(Bad_Malloc,"epoll_event bad new");
                 close();
                 exit(-1);
             }
@@ -125,7 +120,6 @@ namespace hzd
                 epoll_fd = epoll_create(1024);
             if(epoll_fd < 0)
             {
-                LOG(Epoll_Create,"epoll create error");
                 close();
                 perror("epoll_create");
                 exit(-1);
@@ -145,7 +139,6 @@ namespace hzd
             if(fd < 0)
             {
                 if(errno == EAGAIN || errno == EWOULDBLOCK) return;
-                LOG(Socket_Accept,"socket accept error");
                 return;
             }
             int least = INT32_MAX;

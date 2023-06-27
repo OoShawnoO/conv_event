@@ -210,7 +210,6 @@ namespace hzd {
           */
         virtual bool process_rdhup()
         {
-            LOG_MSG("client rdhup close");
             notify_close();
             return true;
         }
@@ -222,7 +221,6 @@ namespace hzd {
           */
         virtual bool process_error()
         {
-            LOG_FMT(Epoll_Error,"client error",CONN_LOG_IP_PORT_FMT);
             notify_close();
             return true;
         }
