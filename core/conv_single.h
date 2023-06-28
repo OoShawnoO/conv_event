@@ -386,7 +386,7 @@ namespace hzd {
             _listen_();
             _register_listen_fd_();
 
-            std::cout << "[ INFO ] socket already listening at " << ip << ":" << port << std::endl;
+            LOG_INFO("socket already listening at " + ip + ":" + std::to_string(port));
 
             int ret;
             int cur_fd;

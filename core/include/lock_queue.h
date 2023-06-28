@@ -48,6 +48,9 @@ namespace hzd
             #endif
             return q.empty();
         }
+        size_t size() {
+            return q.size();
+        }
     };
     template<>
     bool lock_queue<int>::pop(int& t)

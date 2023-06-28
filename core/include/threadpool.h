@@ -1,14 +1,15 @@
 #ifndef CONV_EVENT_THREADPOOL_H
 #define CONV_EVENT_THREADPOOL_H
 
-#include <thread>               /* thread */
-#include <queue>                /* queue */
-#include <unordered_map>        /* unordered_map */
+#include <thread>                       /* thread */
+#include <queue>                        /* queue */
+#include <unordered_map>                /* unordered_map */
 #if __cplusplus <= 201703L
-#include <condition_variable>   /* condition_variable */
+#include <condition_variable>           /* condition_variable */
 #else
-#include <semaphore>            /* mutex semaphore */
+#include <semaphore>                    /* mutex semaphore */
 #endif
+#include "async_logger/async_logger.hpp" /* async_logger */
 
 namespace hzd
 {
@@ -57,6 +58,7 @@ namespace hzd
         {
             if(thread_count <= 0 || max_process_count <= 0)
             {
+                LOG_FATAL("thread count or max process count should not <= 0");
                 exit(-1);
             }
             for(int i=0;i<thread_count;i++) {
@@ -64,6 +66,12 @@ namespace hzd
                 threads.emplace_back(t);
                 t->detach();
             }
+            LOG_INFO(
+                    "thread pool init success,thread count ="
+                    + std::to_string(thread_count)
+                    + " max_process_count = "
+                    + std::to_string(max_process_count)
+                    );
         }
         ~threadpool()
         {
@@ -96,6 +104,11 @@ namespace hzd
 
         bool add(T* t)
         {
+            if(process_pool.size() >= max_process_count)
+            {
+                LOG_WARN("thread pool overload");
+                return false;
+            }
             process_pool.push(t);
             sem.release();
             return true;

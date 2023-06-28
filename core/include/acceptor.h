@@ -244,6 +244,8 @@ namespace hzd
 
             _create_socket_();
             _prepare_socket_address_();
+
+            LOG_INFO("acceptor init success");
         }
         static bool run;
 
@@ -254,7 +256,7 @@ namespace hzd
             _register_listen_fd_();
             _listen_();
 
-            std::cout << "[ INFO ] socket already listening at " << ip << ":" << port << std::endl;
+             LOG_INFO("socket already listening at " + ip + ":" + std::to_string(port));
 
             int ret;
             run = true;

@@ -140,6 +140,8 @@ namespace hzd
             }
             close_queue = new lock_queue<int>();
             conn_pool = parent->conn_pool;
+
+            LOG_INFO("reactor init success");
         }
         void add_conn(int fd)
         {
