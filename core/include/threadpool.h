@@ -66,7 +66,7 @@ namespace hzd
                 threads.emplace_back(t);
                 t->detach();
             }
-            LOG_INFO(
+            LOG_TRACE(
                     "thread pool init success,thread count ="
                     + std::to_string(thread_count)
                     + " max_process_count = "

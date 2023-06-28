@@ -158,6 +158,8 @@ namespace hzd {
             if(conf["address_reuse"].type != JSON_NULL && conf["address_reuse"]) enable_addr_reuse();
 
             close_queue = new lock_queue<int>;
+
+            LOG_INFO("using single-reactor model");
         }
         /* Destructor */
         virtual ~conv_single()
@@ -239,6 +241,7 @@ namespace hzd {
           */
         void enable_addr_reuse() override
         {
+            LOG_TRACE("enabled address reuse");
             int opt = 1;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEADDR,(const void*)&opt,sizeof(opt));
         }
@@ -250,6 +253,7 @@ namespace hzd {
           */
         void disable_addr_reuse() override
         {
+            LOG_TRACE("disabled address reuse");
             int opt = 0;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEADDR,(const void*)&opt,sizeof(opt));
         }
@@ -261,6 +265,7 @@ namespace hzd {
           */
         void enable_port_reuse() override
         {
+            LOG_TRACE("enabled port reuse");
             int opt = 1;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEPORT,(const void*)&opt,sizeof(opt));
         }
@@ -272,6 +277,7 @@ namespace hzd {
           */
         void disable_port_reuse() override
         {
+            LOG_TRACE("disabled port reuse");
             int opt = 0;
             setsockopt(socket_fd,SOL_SOCKET,SO_REUSEPORT,(const void*)&opt,sizeof(opt));
         }
@@ -284,6 +290,7 @@ namespace hzd {
           */
         void enable_multi_thread(int thread_count,int max_process_count) override
         {
+            LOG_TRACE("enabled thread pool");
             if(!thread_pool)
             {
                 thread_pool = new threadpool<T>(thread_count,max_process_count);
@@ -297,6 +304,7 @@ namespace hzd {
           */
         void disable_multi_thread() override
         {
+            LOG_TRACE("disabled thread pool");
             delete thread_pool;
             thread_pool = nullptr;
         }
@@ -308,6 +316,7 @@ namespace hzd {
         */
         void enable_object_pool(size_t size) override
         {
+            LOG_TRACE("enabled connection pool");
             if(!conn_pool)
             {
                 conn_pool = new connpool<T>(size);
@@ -321,6 +330,7 @@ namespace hzd {
         */
         void disable_object_pool() override
         {
+            LOG_TRACE("disabled connection pool");
             delete conn_pool;
             conn_pool = nullptr;
         }
@@ -379,7 +389,7 @@ namespace hzd {
           * @param time_out epoll_wait's time out
           * @retval None
           */
-        void wait(int time_out = 5)
+        virtual void wait(int time_out = 5)
         {
             _bind_();
             _prepare_epoll_event_();

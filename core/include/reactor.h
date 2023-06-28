@@ -47,6 +47,7 @@ namespace hzd
             {
                 close();
                 perror("epoll_create");
+                LOG_ERROR("epoll create failed");
                 exit(-1);
             }
         }
@@ -141,7 +142,7 @@ namespace hzd
             close_queue = new lock_queue<int>();
             conn_pool = parent->conn_pool;
 
-            LOG_INFO("reactor init success");
+            LOG_TRACE("reactor init success");
         }
         void add_conn(int fd)
         {

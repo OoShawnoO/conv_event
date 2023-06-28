@@ -23,6 +23,8 @@ namespace hzd
         std::vector<reactor<T>> reactors;
         explicit conv_multi(int reactor_count = 4)
         {
+            LOG_INFO("using multi-reactor model");
+
             configure& conf = configure::get_config();
             ip = (const char*)conf.require("ip");
             port = conf.require("port");
@@ -67,6 +69,7 @@ namespace hzd
          */
         void enable_addr_reuse() override
         {
+            LOG_TRACE("enabled address reuse");
             _acceptor.enable_addr_reuse();
         }
         /**
@@ -77,6 +80,7 @@ namespace hzd
           */
         void disable_addr_reuse() override
         {
+            LOG_TRACE("disabled address reuse");
             _acceptor.disable_add_reuse();
         }
         /**
@@ -87,6 +91,7 @@ namespace hzd
           */
         void enable_port_reuse() override
         {
+            LOG_TRACE("enabled port reuse");
             _acceptor.enable_port_reuse();
         }
         /**
@@ -97,6 +102,7 @@ namespace hzd
           */
         void disable_port_reuse() override
         {
+            LOG_TRACE("disabled port reuse");
             _acceptor.disable_port_reuse();
         }
         /**
@@ -108,6 +114,7 @@ namespace hzd
           */
         void enable_multi_thread() override
         {
+            LOG_TRACE("enabled thread pool");
             _thread_pool = true;
         }
         /**
@@ -118,6 +125,7 @@ namespace hzd
           */
         void disable_multi_thread() override
         {
+            LOG_TRACE("disabled thread pool");
             _thread_pool = false;
         }
         /**
@@ -128,6 +136,7 @@ namespace hzd
         */
         void enable_object_pool(size_t size) override
         {
+            LOG_TRACE("enabled connection pool");
             if(!conn_pool)
             {
                 conn_pool = new connpool<T>(size);
@@ -141,6 +150,7 @@ namespace hzd
         */
         void disable_object_pool() override
         {
+            LOG_TRACE("disabled connection pool");
             delete conn_pool;
             conn_pool = nullptr;
         }
@@ -200,7 +210,7 @@ namespace hzd
           */
         void set_listen_queue_count(int size) override{if(size >= 0) _acceptor.set_listen_queue_count(size);}
 
-        void wait(int time_out=5)
+        virtual void wait(int time_out=5)
         {
             if(conn_pool) _acceptor.set_conn_pool(conn_pool);
             reactor<T>::set_run_true();

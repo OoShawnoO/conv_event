@@ -281,6 +281,7 @@ namespace hzd {
             {
                 q.push(new T);
             }
+            LOG_TRACE("connection pool init success.");
         }
         ~connpool()
         {

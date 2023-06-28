@@ -41,6 +41,7 @@ namespace hzd
             {
                 close();
                 perror("socket");
+                LOG_ERROR("create socket failed");
                 exit(-1);
             }
             socket_fd = temp_fd;
@@ -69,6 +70,7 @@ namespace hzd
             {
                 close();
                 perror("bind");
+                LOG_ERROR("bind failed");
                 exit(-1);
             }
         }
@@ -98,6 +100,7 @@ namespace hzd
             {
                 close();
                 perror("epoll_add");
+                LOG_ERROR("epoll add listen fd failed");
                 exit(-1);
             }
         }
@@ -122,6 +125,7 @@ namespace hzd
             {
                 close();
                 perror("epoll_create");
+                LOG_ERROR("epoll create failed");
                 exit(-1);
             }
         }
@@ -245,7 +249,7 @@ namespace hzd
             _create_socket_();
             _prepare_socket_address_();
 
-            LOG_INFO("acceptor init success");
+            LOG_TRACE("acceptor init success");
         }
         static bool run;
 

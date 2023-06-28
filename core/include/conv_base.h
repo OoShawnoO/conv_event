@@ -18,6 +18,8 @@ namespace hzd
                  " ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝  ╚═══╝ ╚══════╝╚══════╝  ╚═══╝  ╚══════╝╚═╝  ╚═══╝   ╚═╝   \n"
                  "                                                                                       \n"
             << std::endl;
+            system("ulimit -n 65535");
+            LOG_INFO("ulimit file descriptor nums = 65535");
         }
     protected:
         bool ET{false};

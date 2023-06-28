@@ -640,7 +640,7 @@ namespace hzd {
             http_1_0_close();
             return true;
         }
-        bool forward(std::string  url,http_Methods method = GET){
+        bool forward(const std::string&  url,http_Methods method = GET){
             switch(method)
             {
                 case GET : {
@@ -1257,7 +1257,7 @@ namespace hzd {
             if(req_header.method == POST)
             {
                 std::string body = data.substr(divide+4);
-                size_t cur = 0;
+                size_t cur{0};
                 while((cur = strtoll(req_header.request_headers["Content-Length"][0].c_str(),nullptr,10)) > body.size())
                 {
                     recv(body,cur - body.size());
@@ -1319,8 +1319,26 @@ namespace hzd {
     std::unordered_map<std::string,router*> http_conn::routers;
     std::unordered_map<std::string,std::shared_ptr<filter::node>> http_conn::filters { {"/",std::make_shared<filter::node>()} };
 
-    using conv_http_multi = conv_multi<http_conn>;
-    using conv_http_single = conv_single<http_conn>;
+    class conv_http_multi : conv_multi<http_conn>
+    {
+    public:
+        void wait(int time_out=5) override
+        {
+            LOG_INFO("running at: http://127.0.0.1:" + std::to_string(port));
+            conv_multi<http_conn>::wait(time_out);
+        }
+    };
+
+    class conv_http_single : conv_single<http_conn>
+    {
+    public:
+        void wait(int time_out=5) override
+        {
+            LOG_INFO("running at: http://127.0.0.1:" + std::to_string(port));
+            conv_single<http_conn>::wait(time_out);
+        }
+    };
+
 }
 using namespace hzd;
 
