@@ -8,6 +8,19 @@
 #include <csignal>                      /* signal */
 
 namespace hzd {
+    template<typename T>
+    class conv_single;
+
+    template<typename T>
+    void single_sigint_handler(int signum) {
+        conv_single<T>::run = false;
+        async_logger& logger = async_logger::AsyncLogger(
+                L_INFO,"signal interrupt",__FILE__,__LINE__,__FUNCTION__
+                );
+        logger.flush();
+        exit(signum);
+    }
+
     template<class T>
     class conv_single : public conv_base{
         /* static assert*/
@@ -128,9 +141,15 @@ namespace hzd {
         connpool<T>* conn_pool{nullptr};
         lock_queue<int>* close_queue{nullptr};
     public:
+        static bool run;
         /* Constructor */
         explicit conv_single()
         {
+            LOG_INFO("using single-reactor model");
+            signal(SIGINT,single_sigint_handler<T>);
+            signal(SIGTERM,single_sigint_handler<T>);
+            signal(SIGQUIT,single_sigint_handler<T>);
+
             configure& conf = configure::get_config();
             ip = (const char*)conf.require("ip");
             port = conf.require("port");
@@ -159,7 +178,6 @@ namespace hzd {
 
             close_queue = new lock_queue<int>;
 
-            LOG_INFO("using single-reactor model");
         }
         /* Destructor */
         virtual ~conv_single()
@@ -400,7 +418,7 @@ namespace hzd {
 
             int ret;
             int cur_fd;
-            while(true)
+            while(run)
             {
                 while(!close_queue->empty())
                 {
@@ -520,7 +538,8 @@ namespace hzd {
             close();
         }
     };
-
+    template<typename T>
+    bool conv_single<T>::run = true;
 }
 
 #endif

@@ -9,21 +9,35 @@
 
 namespace hzd
 {
+    template<typename T>
+    void multi_sigint_handler(int signum)
+    {
+        conv_multi<T>::run = false;
+        async_logger& logger = async_logger::AsyncLogger(
+                L_INFO,"signal interrupt",__FILE__,__LINE__,__FUNCTION__
+                );
+        logger.flush();
 
+        exit(signum);
+    }
     template <class T>
     class conv_multi : public conv_base{
         friend class reactor<T>;
         friend class acceptor<T>;
     protected:
         bool _thread_pool{false};
-        bool run{true};
         acceptor<T> _acceptor;
         connpool<T>* conn_pool{nullptr};
     public:
+        static bool run;
         std::vector<reactor<T>> reactors;
+
         explicit conv_multi(int reactor_count = 4)
         {
             LOG_INFO("using multi-reactor model");
+            signal(SIGINT,multi_sigint_handler<T>);
+            signal(SIGTERM,multi_sigint_handler<T>);
+            signal(SIGQUIT,multi_sigint_handler<T>);
 
             configure& conf = configure::get_config();
             ip = (const char*)conf.require("ip");
@@ -56,7 +70,7 @@ namespace hzd
         }
         void close() override
         {
-            run = false;
+            acceptor<T>::run = false;
             reactor<T>::set_run_false();
             delete conn_pool;
             conn_pool = nullptr;
@@ -225,6 +239,8 @@ namespace hzd
             close();
         }
     };
+    template<typename T>
+    bool conv_multi<T>::run = true;
 }
 
 #endif
