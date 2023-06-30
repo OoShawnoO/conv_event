@@ -272,7 +272,7 @@ namespace hzd {
         #else
                 static_assert(std::is_base_of<conn,T>::value,"must derived from class hzd::conn.");
         #endif
-        safe_queue<T*> q;
+        lock_queue<T*> q;
         size_t size;
     public:
         explicit connpool(size_t _size):size(_size)

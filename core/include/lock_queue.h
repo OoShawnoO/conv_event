@@ -18,7 +18,7 @@ namespace hzd
         std::mutex mtx;
         #endif
     public:
-        void push(T& t)
+        void push(const T& t)
         {
             #if __cplusplus >= 201703L
             std::unique_lock<std::shared_mutex> lock(mtx);

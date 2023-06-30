@@ -472,7 +472,7 @@ namespace hzd {
                         connects[cur_fd]->status = conn::RDHUP;
                         if(thread_pool)
                         {
-                            thread_pool->add(connects[cur_fd]);
+                            if(!thread_pool->add(connects[cur_fd])){CONNECTS_REMOVE_FD;}
                         }
                         else
                         {
@@ -488,7 +488,7 @@ namespace hzd {
                         connects[cur_fd]->status = conn::ERROR;
                         if(thread_pool)
                         {
-                            thread_pool->add(connects[cur_fd]);
+                            if(!thread_pool->add(connects[cur_fd])){CONNECTS_REMOVE_FD;}
                         }
                         else
                         {
@@ -504,7 +504,7 @@ namespace hzd {
                         connects[cur_fd]->status = conn::OUT;
                         if(thread_pool)
                         {
-                            thread_pool->add(connects[cur_fd]);
+                            if(!thread_pool->add(connects[cur_fd])){CONNECTS_REMOVE_FD;}
                         }
                         else
                         {
@@ -519,7 +519,7 @@ namespace hzd {
                         connects[cur_fd]->status = conn::IN;
                         if(thread_pool)
                         {
-                            thread_pool->add(connects[cur_fd]);
+                            if(!thread_pool->add(connects[cur_fd])){CONNECTS_REMOVE_FD;}
                         }
                         else
                         {
